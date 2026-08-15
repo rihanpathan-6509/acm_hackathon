@@ -24,6 +24,31 @@ function readFileAsBase64(file) {
   });
 }
 
+// Mirrors backend/services/reminderService.js's TIMING_SCHEDULE — used only
+// to pre-fill a sensible starting point in the editable field below, not as
+// the source of truth (the backend applies its own default if the field is
+// left blank). Keeping this a plain suggestion, not a duplicate of the real
+// logic, is what makes "personalize the time" actually mean something: the
+// patient is editing a starting guess, not fighting a second copy of the
+// scheduling rules.
+const SUGGESTED_TIMES = {
+  od: "08:00", bd: "08:00, 20:00", tds: "08:00, 14:00, 20:00",
+  tid: "08:00, 14:00, 20:00", qid: "08:00, 12:00, 16:00, 20:00", hs: "22:00",
+};
+
+function suggestTimes(timing) {
+  return SUGGESTED_TIMES[(timing || "").toLowerCase().trim()] || "";
+}
+
+const TIME_TOKEN = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+function parseReminderTimesInput(value) {
+  return value
+    .split(",")
+    .map((t) => t.trim())
+    .filter((t) => TIME_TOKEN.test(t));
+}
+
 export default function Upload() {
   const [patientId, setPatientId] = useState(null);
   const [data, setData] = useState(null);
@@ -33,6 +58,7 @@ export default function Upload() {
   const [dragActive, setDragActive] = useState(false);
   const [saveState, setSaveState] = useState("idle"); // idle | saving | saved | error
   const [reminderSummary, setReminderSummary] = useState([]);
+  const [reminderTimeInputs, setReminderTimeInputs] = useState({}); // { [medicationIndex]: "08:00, 20:00" }
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -62,6 +88,11 @@ export default function Upload() {
       const res = await extractDocument(base64, file.type);
       setData(res.extraction);
       setNormalized(res.normalized || null);
+
+      const meds = res.extraction?.prescription?.medications || [];
+      const suggestions = {};
+      meds.forEach((med, i) => { suggestions[i] = suggestTimes(med.timing); });
+      setReminderTimeInputs(suggestions);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -84,7 +115,10 @@ export default function Upload() {
       if (data.input_type === "prescription" && data.prescription) {
         const meds = data.prescription.medications;
         const results = await Promise.all(
-          meds.map((med) => saveMedication(patientId, med, data.requires_manual_review))
+          meds.map((med, i) => {
+            const customTimes = parseReminderTimesInput(reminderTimeInputs[i] || "");
+            return saveMedication(patientId, med, data.requires_manual_review, customTimes);
+          })
         );
         setReminderSummary(
           results.map((r, i) => ({ drugName: meds[i].drug_name, ...r.reminders }))
@@ -289,6 +323,21 @@ export default function Upload() {
                           </span>
                         </div>
                       </div>
+
+                      <div className="mt-3 pt-3 border-t border-gray-200/70">
+                        <label className="block text-xs text-gray-500 mb-1">
+                          Reminder times (24h, comma-separated — leave blank to use the default for "{med.timing}")
+                        </label>
+                        <input
+                          type="text"
+                          value={reminderTimeInputs[index] ?? ""}
+                          onChange={(e) =>
+                            setReminderTimeInputs((prev) => ({ ...prev, [index]: e.target.value }))
+                          }
+                          placeholder="e.g. 08:00, 20:00"
+                          className="w-full text-sm border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
                     </div>
                   );
                 })}
@@ -374,7 +423,7 @@ export default function Upload() {
                 <div key={i}>
                   <span className="font-medium text-gray-800">{r.drugName}:</span>{" "}
                   {r.scheduled
-                    ? `reminders at ${r.created.map((c) => c.scheduledTime).join(", ")}`
+                    ? `reminders at ${r.created.map((c) => c.scheduledTime).join(", ")}${r.personalized ? " (your times)" : ""}`
                     : r.reason}
                 </div>
               ))}

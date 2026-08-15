@@ -3,9 +3,8 @@
 // Turns a saved Medication's `timing` into actual Reminder documents.
 // TIMING_SCHEDULE below is a reasonable DEFAULT mapping of common
 // abbreviations to clock times (e.g. BD -> 8am/8pm) — not a clinically or
-// product-validated schedule. Adjust the times themselves freely; the
-// logic that consumes them (create one Reminder per scheduled time) is
-// the part that shouldn't need to change.
+// product-validated schedule. The patient can override it per-medication
+// (see customTimes below) — the default only applies when they don't.
 //
 // Called from medicationController right after a Medication is saved —
 // not exposed as its own route (see BACKEND_HANDOFF.md: "off
@@ -14,7 +13,8 @@
 const Reminder = require("../models/reminderModel");
 
 // OD/BD/TDS/QID = how many times a day. HS = bedtime. SOS/PRN = as-needed,
-// no fixed schedule — those intentionally produce zero reminder times.
+// no fixed schedule — those intentionally produce zero reminder times
+// unless the patient sets their own via customTimes.
 const TIMING_SCHEDULE = {
   od: ["08:00"],
   "once daily": ["08:00"],
@@ -29,6 +29,8 @@ const TIMING_SCHEDULE = {
   prn: [],
 };
 
+const TIME_FORMAT = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
 function resolveScheduleTimes(timing) {
   if (!timing) return [];
   const key = timing.toLowerCase().trim();
@@ -36,15 +38,29 @@ function resolveScheduleTimes(timing) {
 }
 
 /**
- * Create Reminder documents for a saved Medication. Unrecognized or
- * as-needed (SOS/PRN) timing produces no automatic reminders — the caller
- * should surface that to the patient/UI as "needs manual scheduling"
- * rather than the reminder silently never firing.
+ * Create Reminder documents for a saved Medication.
  * @param {object} medication  a saved Medication document (_id, patientId, timing, instructions)
+ * @param {string[]} [customTimes]  patient-chosen "HH:MM" times overriding
+ *   the default schedule entirely — this is what makes a reminder
+ *   personalized rather than always defaulting to 08:00/20:00/etc.
+ *   Invalid entries are dropped rather than rejecting the whole request,
+ *   since one typo shouldn't block saving a medication the patient already
+ *   confirmed is correct.
  * @returns {Promise<{ created: object[], scheduled: boolean, reason?: string }>}
  */
-async function scheduleReminders(medication) {
-  const times = resolveScheduleTimes(medication.timing);
+async function scheduleReminders(medication, customTimes) {
+  let times;
+  let usedCustomTimes = false;
+
+  if (Array.isArray(customTimes) && customTimes.length > 0) {
+    const valid = customTimes.filter((t) => TIME_FORMAT.test(t));
+    if (valid.length > 0) {
+      times = valid;
+      usedCustomTimes = true;
+    }
+  }
+
+  if (!times) times = resolveScheduleTimes(medication.timing);
 
   if (times.length === 0) {
     return {
@@ -60,13 +76,15 @@ async function scheduleReminders(medication) {
     times.map((scheduledTime) => ({
       patientId: medication.patientId,
       medicationId: medication._id,
+      source: "medication",
+      label: medication.drugName,
       scheduledTime,
       instructions: medication.instructions || null,
       active: true,
     }))
   );
 
-  return { created, scheduled: true };
+  return { created, scheduled: true, personalized: usedCustomTimes };
 }
 
-module.exports = { scheduleReminders, resolveScheduleTimes, TIMING_SCHEDULE };
+module.exports = { scheduleReminders, resolveScheduleTimes, TIMING_SCHEDULE, TIME_FORMAT };

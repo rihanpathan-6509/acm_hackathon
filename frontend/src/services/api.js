@@ -70,7 +70,10 @@ export async function extractDocument(base64Image, mimeType) {
 // camelCase. Mapped here once so callers don't have to think about it.
 // `requiresManualReview` comes from the extraction's top-level flag, not
 // the per-medication object — it isn't on `medication` itself.
-export async function saveMedication(patientId, medication, requiresManualReview) {
+// `reminderTimes` (optional ["HH:MM", ...]) is the patient's own choice of
+// when to be reminded — omit it to use the timing-based default (BD -> 8am/
+// 8pm, etc.).
+export async function saveMedication(patientId, medication, requiresManualReview, reminderTimes) {
   return request("/medications", {
     method: "POST",
     body: JSON.stringify({
@@ -83,6 +86,7 @@ export async function saveMedication(patientId, medication, requiresManualReview
       confidence: medication.confidence,
       fieldFlags: medication.field_flags,
       requiresManualReview: Boolean(requiresManualReview),
+      ...(reminderTimes?.length ? { reminderTimes } : {}),
     }),
   });
 }
@@ -112,8 +116,49 @@ export async function getReminders(patientId) {
   return request(`/reminders/${patientId}`);
 }
 
+// A standalone reminder not tied to any medication — e.g. "check blood
+// pressure", "take a walk".
+export async function createReminder(patientId, label, scheduledTime, instructions) {
+  return request("/reminders", {
+    method: "POST",
+    body: JSON.stringify({ patientId, label, scheduledTime, instructions }),
+  });
+}
+
+export async function updateReminder(id, updates) {
+  return request(`/reminders/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
+}
+
 export async function markReminderTaken(id) {
   return request(`/reminders/${id}/taken`, { method: "PATCH" });
+}
+
+export async function deactivateReminder(id) {
+  return request(`/reminders/${id}/deactivate`, { method: "PATCH" });
+}
+
+export async function getPatients() {
+  return request("/patients");
+}
+
+export async function createPatient(name) {
+  return request("/patients", { method: "POST", body: JSON.stringify({ name }) });
+}
+
+export function getActivePatientId() {
+  return localStorage.getItem(PATIENT_ID_KEY);
+}
+
+// Switches which patient the rest of the app (Dashboard, Chat, Upload) acts
+// on. A full reload is simplest and safest here — every component reads
+// the active id via getOrCreatePatientId() on mount, so a reload guarantees
+// nothing is left showing stale data from the previous patient.
+export function setActivePatientId(patientId) {
+  localStorage.setItem(PATIENT_ID_KEY, patientId);
+  window.location.href = "/";
 }
 
 export async function sendChatMessage(message, patientId, patientContext, history) {

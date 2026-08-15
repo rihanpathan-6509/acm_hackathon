@@ -6,8 +6,10 @@ import {
   useLocation,
 } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
+import PatientsPage from "./pages/PatientsPage";
 import Upload from "./components/Upload";
 import ChatBox from "./components/ChatBox";
+import ReminderAlert from "./components/ReminderAlert";
 
 function NavLink({ to, children }) {
   const location = useLocation();
@@ -45,6 +47,7 @@ export default function App() {
                 <NavLink to="/">Dashboard</NavLink>
                 <NavLink to="/upload">Upload</NavLink>
                 <NavLink to="/chat">Assistant</NavLink>
+                <NavLink to="/patients">Patients</NavLink>
               </div>
             </div>
           </div>
@@ -55,8 +58,13 @@ export default function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/upload" element={<Upload />} />
             <Route path="/chat" element={<ChatBox />} />
+            <Route path="/patients" element={<PatientsPage />} />
           </Routes>
         </main>
+
+        {/* Mounted at the app root, not inside Dashboard, so a reminder
+            pops up no matter which page the patient is currently on. */}
+        <ReminderAlert />
       </div>
     </Router>
   );

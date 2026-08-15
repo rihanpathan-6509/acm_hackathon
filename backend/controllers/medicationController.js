@@ -23,6 +23,7 @@ async function create(req, res, next) {
     const {
       patientId, drugName, dose, timing, instructions, duration,
       confidence, fieldFlags, requiresManualReview,
+      reminderTimes, // optional ["HH:MM", ...] — patient's own choice, overrides the timing-based default
     } = req.body;
 
     if (!patientId || !drugName) {
@@ -36,7 +37,7 @@ async function create(req, res, next) {
 
     const reminderResult = medication.requiresManualReview
       ? { created: [], scheduled: false, reason: "Skipped — medication requires manual review before scheduling." }
-      : await scheduleReminders(medication);
+      : await scheduleReminders(medication, reminderTimes);
 
     res.status(201).json({ medication, reminders: reminderResult });
   } catch (err) {
