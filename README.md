@@ -1,10 +1,8 @@
 # ChronicCare AI
 
 Merged hackathon build (ChronicCare AI + Trendline) — 2nd NextGen Hackathon
-2026, HealthTech & Bio-Innovation. See `PROGRESS.md` for current status,
-`WALKTHROUGH.md` for a full explainer of how the AI/ML pieces work,
-`BACKEND_HANDOFF.md` / `FRONTEND_HANDOFF.md` for what's needed from each
-team.
+2026, HealthTech & Bio-Innovation. See `BACKEND_HANDOFF.md` /
+`FRONTEND_HANDOFF.md` for what's needed from each team.
 
 ## Layout
 
@@ -45,8 +43,7 @@ index.js   Standalone entrypoint for testing extraction/chat without MongoDB
 
 Extraction schema + prompt, marker normalization (the hard part), chat
 companion prompt/guardrails — all built from Perplexity research, not
-invented. See `WALKTHROUGH.md` for the full explanation of how each piece
-works and why.
+invented.
 
 ## Running this
 

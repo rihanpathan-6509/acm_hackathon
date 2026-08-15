@@ -131,9 +131,8 @@ patient.
 ```
 
 - `language` is `"en"` or `"hi"` — build a language toggle in the chat UI,
-  the guardrail prompt handles both explicitly (with equal strictness in
-  both, by design — see `WALKTHROUGH.md` §5 if you're curious why that
-  needed its own instruction).
+  the guardrail prompt handles both explicitly, with equal strictness in
+  both by design.
 - `history` is optional but recommended — the guardrail logic actually
   checks prior turns for diagnosis-probing questions and gets stricter on
   follow-ups if it finds one, so passing real conversation history makes the

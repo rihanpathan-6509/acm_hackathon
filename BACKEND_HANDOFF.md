@@ -2,11 +2,9 @@
 
 **From:** Rihan (AI/ML)
 **Status:** extraction, marker normalization, and chat guardrails are all built
-and locally verified — see `PROGRESS.md` for status, `WALKTHROUGH.md` for how
-any of it actually works. Not yet tested against the live Gemini API.
-**Repo:** [github.com/rihanpathan-6509/acm_hackathon](https://github.com/rihanpathan-6509/acm_hackathon)
-(currently just my `rihan-ai-ml/` slice at the root — see the repo-structure
-question at the bottom before you push your own code here)
+and locally verified. Not yet tested against the live Gemini API.
+**Repo:** [github.com/rihanpathan-6509/acm_hackathon](https://github.com/rihanpathan-6509/acm_hackathon) —
+AI/ML code lives under `backend/` following the team-agreed structure.
 
 ---
 
@@ -95,9 +93,8 @@ extracted, and the response includes it:
 
 **Store both `value`/`canonicalUnit` (SI) and `displayValue`/`displayUnit`**
 per reading — SI for consistent cross-marker math, display for whatever UI
-renders it. This was a deliberate decision (see `WALKTHROUGH.md` §7), not an
-oversight — please don't collapse it to just one unit when designing the
-Mongo document shape.
+renders it. This was a deliberate decision, not an oversight — please don't
+collapse it to just one unit when designing the Mongo document shape.
 
 If `extraction.lab_report` normalization throws (e.g. an unrecognized unit),
 `extractController.js` (`backend/controllers/`) already catches it and still returns the extraction
