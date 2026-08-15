@@ -7,6 +7,7 @@
 
 require("dotenv").config();
 const express = require("express");
+const cors = require("cors");
 const { errorHandler } = require("./middleware/errorHandler");
 const { connectDB } = require("./config/mongodb");
 
@@ -18,6 +19,17 @@ const labRoutes = require("./routes/labRoutes");
 const reminderRoutes = require("./routes/reminderRoutes");
 
 const app = express();
+
+// Without this, every request from the frontend (a different origin —
+// Vite dev server on :5173, or wherever it's deployed) gets silently
+// blocked by the browser before it even reaches these routes. Comma-
+// separated FRONTEND_URLS in .env for prod; localhost Vite ports covered
+// by default for local dev.
+const allowedOrigins = (process.env.FRONTEND_URLS || "http://localhost:5173,http://localhost:5174")
+  .split(",")
+  .map((origin) => origin.trim());
+app.use(cors({ origin: allowedOrigins }));
+
 // 25MB: patients upload both photos and PDFs (multi-page lab reports can be
 // sizable), and base64 encoding inflates the original file size by ~33%.
 app.use(express.json({ limit: "25mb" }));
