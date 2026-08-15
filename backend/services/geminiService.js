@@ -129,6 +129,19 @@ async function generateExtraction(prompt, inlineImage) {
     async (modelName) => {
       const model = getExtractionModel(modelName);
       const result = await model.generateContent(parts);
+
+      // Detect truncation explicitly rather than letting it surface later
+      // as an opaque "Model did not return valid JSON" — a MAX_TOKENS
+      // finish is a distinct, actionable failure (raise the limit / the
+      // document has more items than expected), not a malformed-request
+      // error, so it shouldn't be silently indistinguishable from one.
+      const finishReason = result.response.candidates?.[0]?.finishReason;
+      if (finishReason === "MAX_TOKENS") {
+        throw new Error(
+          `${modelName} hit the output token limit before finishing the JSON response — the document likely has more medications/tests than the response budget allows. Raise maxOutputTokens in config/gemini.js or simplify the document.`
+        );
+      }
+
       return result.response.text();
     },
     "generateExtraction"

@@ -46,6 +46,13 @@ function getExtractionModel(modelName = EXTRACTION_MODELS[0]) {
     generationConfig: {
       temperature: 0.1, // low temp: we want faithful reads, not creative ones
       responseMimeType: "application/json",
+      // Explicit, not left to the SDK/model default. A prescription with
+      // several medications or a lab report with a full CBC+lipid panel
+      // produces a long JSON body (every field carries its own confidence
+      // + field_flags array) — an unset/low default risks the response
+      // getting cut off mid-object, which then fails JSON.parse with a
+      // confusing "not valid JSON" error that doesn't explain why.
+      maxOutputTokens: 8192,
     },
   });
 }
@@ -55,6 +62,7 @@ function getChatModel(modelName = CHAT_MODELS[0]) {
     model: modelName,
     generationConfig: {
       temperature: 0.4,
+      maxOutputTokens: 2048,
     },
   });
 }

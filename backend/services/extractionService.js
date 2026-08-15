@@ -29,8 +29,18 @@ async function extractDocument(base64Image, mimeType) {
   try {
     parsed = JSON.parse(rawText);
   } catch (err) {
+    // Show the tail, not just the head — if this was a MAX_TOKENS
+    // truncation that slipped past the finishReason check in
+    // geminiService.js (e.g. an older SDK version that doesn't expose it),
+    // the cutoff is only visible at the end of the response. The previous
+    // head-only slice made every truncation and every genuine malformed-
+    // JSON bug look identical and undiagnosable.
+    const preview =
+      rawText.length <= 800
+        ? rawText
+        : `${rawText.slice(0, 400)}\n...[${rawText.length - 800} chars omitted]...\n${rawText.slice(-400)}`;
     throw new Error(
-      `Model did not return valid JSON. Raw response: ${rawText.slice(0, 500)}`
+      `Model did not return valid JSON (${err.message}). Response length: ${rawText.length} chars. Raw response:\n${preview}`
     );
   }
 
