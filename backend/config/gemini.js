@@ -18,10 +18,15 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 // Using the "-latest" aliases instead of a pinned version: Google's own
 // deprecation message recommends this, and it means this file doesn't need
 // another emergency fix the next time a dated model gets sunset.
-
-// Vision-capable model — needed because extraction reads the
-// prescription/lab image directly (no separate OCR stage).
-const EXTRACTION_MODEL = "gemini-pro-latest";
+//
+// Both are flash, not pro: gemini-pro-latest resolves to gemini-3.1-pro,
+// which has a free-tier quota of literally 0 (429 "limit: 0" on every
+// request — not a rate limit that clears, it's simply unavailable without
+// billing). Flash is multimodal too, so extraction still reads images/PDFs
+// directly. If billing is ever enabled on this key, switching
+// EXTRACTION_MODEL back to gemini-pro-latest is a one-line change worth
+// testing — pro may read messy handwriting more accurately.
+const EXTRACTION_MODEL = "gemini-flash-latest";
 
 // Text model for the chat companion — no need for vision here.
 const CHAT_MODEL = "gemini-flash-latest";
