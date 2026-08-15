@@ -1,12 +1,22 @@
 // controllers/extractController.js
 //
-// POST /extract — receives an uploaded prescription/lab image (base64 or
-// multipart, adjust to match Nikhil's upload flow), runs extraction, and
-// for lab reports also runs normalization before responding, so the
-// frontend gets normalized marker data in one round trip.
+// POST /extract — receives an uploaded prescription/lab document (base64
+// JSON body — see FRONTEND_HANDOFF.md), runs extraction, and for lab
+// reports also runs normalization before responding, so the frontend gets
+// normalized marker data in one round trip.
+//
+// Patients upload both photos and PDFs across a mix of extensions, so
+// mimeType is validated against an allow-list here rather than assumed to
+// be a single image type — Gemini's inlineData accepts any of these
+// directly, no format-specific handling needed elsewhere in the pipeline.
 
 const { extractDocument } = require("../services/extractionService");
 const { buildMarkerTimeSeries } = require("../services/normalizationService");
+
+const SUPPORTED_MIME_TYPES = [
+  "image/jpeg", "image/jpg", "image/png", "image/webp",
+  "image/heic", "image/heif", "application/pdf",
+];
 
 async function handleExtract(req, res) {
   try {
@@ -18,8 +28,14 @@ async function handleExtract(req, res) {
       });
     }
 
+    if (!SUPPORTED_MIME_TYPES.includes(mimeType.toLowerCase())) {
+      return res.status(400).json({
+        error: `Unsupported mimeType "${mimeType}". Supported: ${SUPPORTED_MIME_TYPES.join(", ")}.`,
+      });
+    }
+
     // documentType is no longer a caller input — the extraction prompt
-    // determines input_type itself (see promptTemplate.js TASK section).
+    // determines input_type itself (see prompts/extractionPrompt.js TASK section).
     const extraction = await extractDocument(base64Image, mimeType);
 
     // Prescriptions: hand back as-is, backend turns this into reminders.

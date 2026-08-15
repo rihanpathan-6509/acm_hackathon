@@ -18,6 +18,18 @@ now without waiting on that.
 You do **not** need to tell it whether it's a prescription or lab report —
 the model figures that out itself and returns it in `input_type`.
 
+**Supported `mimeType` values:** `image/jpeg`, `image/jpg`, `image/png`,
+`image/webp`, `image/heic`, `image/heif`, `application/pdf` — anything else
+gets a clean `400` instead of a confusing failure further down. Use the
+browser's `file.type` (or a multipart upload's parsed mimetype) directly;
+don't try to guess it from the file extension yourself.
+
+**Size limit:** 25MB request body — since base64 inflates the original file
+size by ~33%, that's roughly an 18MB original file ceiling. Multi-page PDF
+lab reports are the most likely to hit this; worth a client-side size check
+before upload so the patient gets an immediate "too large" message instead
+of waiting on a slow upload that fails at the end.
+
 **Response (prescription):**
 ```json
 {

@@ -58,9 +58,9 @@ result means clinically — you only transcribe what is written on the document
 into the given structure.
 
 TASK
-Given an image of either a prescription or a lab report, extract its contents
-into the JSON schema provided below. Determine which document type it is
-first, then extract only the matching schema.
+Given an image or PDF of either a prescription or a lab report, extract its
+contents into the JSON schema provided below. Determine which document type
+it is first, then extract only the matching schema.
 
 HARD RULES
 1. FLAG, DON'T GUESS. If any field is unclear, smudged, cropped, or

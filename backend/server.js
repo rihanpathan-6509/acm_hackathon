@@ -18,7 +18,9 @@ const labRoutes = require("./routes/labRoutes");
 const reminderRoutes = require("./routes/reminderRoutes");
 
 const app = express();
-app.use(express.json({ limit: "15mb" })); // base64 images need headroom
+// 25MB: patients upload both photos and PDFs (multi-page lab reports can be
+// sizable), and base64 encoding inflates the original file size by ~33%.
+app.use(express.json({ limit: "25mb" }));
 
 app.use("/api", extractRoutes);
 app.use("/api", chatRoutes);
