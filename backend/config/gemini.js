@@ -13,27 +13,36 @@ if (!process.env.GEMINI_API_KEY) {
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// gemini-1.5-pro/-flash were retired by Google (404 "no longer available to
-// new users" as of this build) — same for 2.5-pro/2.5-flash on this key.
-// Using the "-latest" aliases instead of a pinned version: Google's own
-// deprecation message recommends this, and it means this file doesn't need
-// another emergency fix the next time a dated model gets sunset.
+// Model history worth knowing before changing these:
+// - gemini-1.5-pro/-flash and 2.5-pro/-flash are retired on this key (404,
+//   "no longer available to new users"), so don't reach for them.
+// - gemini-pro-latest resolves to gemini-3.1-pro, which has a free-tier
+//   quota of literally 0 (429 "limit: 0" on every request — not a rate
+//   limit that clears). Pro is unusable without billing.
+// Flash models are multimodal, so extraction still reads images/PDFs fine.
 //
-// Both are flash, not pro: gemini-pro-latest resolves to gemini-3.1-pro,
-// which has a free-tier quota of literally 0 (429 "limit: 0" on every
-// request — not a rate limit that clears, it's simply unavailable without
-// billing). Flash is multimodal too, so extraction still reads images/PDFs
-// directly. If billing is ever enabled on this key, switching
-// EXTRACTION_MODEL back to gemini-pro-latest is a one-line change worth
-// testing — pro may read messy handwriting more accurately.
-const EXTRACTION_MODEL = "gemini-flash-latest";
+// These are LISTS, not single models, because the free tier's daily quota
+// is per-model ("GenerateRequestsPerDayPerProjectPerModel", 20/day). When
+// the first model's daily allowance is spent, geminiService falls through
+// to the next one, which has its own separate 20 — verified by hitting the
+// quota on gemini-flash-latest while all three fallbacks still answered.
+// Order is best-first: -latest tracks Google's current flash, and the
+// lite variants trade some accuracy for a separate quota pool.
+const EXTRACTION_MODELS = [
+  "gemini-flash-latest",
+  "gemini-3.5-flash",
+  "gemini-flash-lite-latest",
+];
 
-// Text model for the chat companion — no need for vision here.
-const CHAT_MODEL = "gemini-flash-latest";
+const CHAT_MODELS = [
+  "gemini-flash-latest",
+  "gemini-3.5-flash",
+  "gemini-flash-lite-latest",
+];
 
-function getExtractionModel() {
+function getExtractionModel(modelName = EXTRACTION_MODELS[0]) {
   return genAI.getGenerativeModel({
-    model: EXTRACTION_MODEL,
+    model: modelName,
     generationConfig: {
       temperature: 0.1, // low temp: we want faithful reads, not creative ones
       responseMimeType: "application/json",
@@ -41,13 +50,18 @@ function getExtractionModel() {
   });
 }
 
-function getChatModel() {
+function getChatModel(modelName = CHAT_MODELS[0]) {
   return genAI.getGenerativeModel({
-    model: CHAT_MODEL,
+    model: modelName,
     generationConfig: {
       temperature: 0.4,
     },
   });
 }
 
-module.exports = { getExtractionModel, getChatModel };
+module.exports = {
+  getExtractionModel,
+  getChatModel,
+  EXTRACTION_MODELS,
+  CHAT_MODELS,
+};

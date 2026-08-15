@@ -6,7 +6,12 @@
 // config/gemini.js directly; they go through here so retry/logging lives
 // in exactly one place.
 
-const { getExtractionModel, getChatModel } = require("../config/gemini");
+const {
+  getExtractionModel,
+  getChatModel,
+  EXTRACTION_MODELS,
+  CHAT_MODELS,
+} = require("../config/gemini");
 
 // The free tier returns transient 503 "high demand" fairly often — seen
 // repeatedly during testing, and it cleared on retry every time. Retrying
@@ -84,6 +89,31 @@ async function withRetry(fn, label) {
   throw lastError;
 }
 
+// The free tier's daily quota is per-model, so a model whose allowance is
+// spent doesn't mean the API is unusable — the next model has its own.
+// Walk the list until one answers. Only quota exhaustion advances to the
+// next model; a genuine failure (bad request, malformed image) would fail
+// identically on every model, so it throws immediately rather than
+// retrying the same mistake three more times.
+async function withModelFallback(modelNames, callWithModel, label) {
+  let lastError;
+
+  for (let i = 0; i < modelNames.length; i++) {
+    try {
+      return await withRetry(() => callWithModel(modelNames[i]), `${label}[${modelNames[i]}]`);
+    } catch (err) {
+      lastError = err;
+      const isLast = i === modelNames.length - 1;
+      if (!isUnrecoverableQuota(err) || isLast) throw err;
+      console.warn(
+        `${label}: ${modelNames[i]} quota exhausted, falling back to ${modelNames[i + 1]}`
+      );
+    }
+  }
+
+  throw lastError;
+}
+
 /**
  * One-shot multimodal generation, used by extraction: prompt + optional
  * inline image data in, raw text out.
@@ -94,11 +124,15 @@ async function generateExtraction(prompt, inlineImage) {
   const parts = [{ text: prompt }];
   if (inlineImage) parts.push({ inlineData: inlineImage });
 
-  return withRetry(async () => {
-    const model = getExtractionModel();
-    const result = await model.generateContent(parts);
-    return result.response.text();
-  }, "generateExtraction");
+  return withModelFallback(
+    EXTRACTION_MODELS,
+    async (modelName) => {
+      const model = getExtractionModel(modelName);
+      const result = await model.generateContent(parts);
+      return result.response.text();
+    },
+    "generateExtraction"
+  );
 }
 
 /**
@@ -109,18 +143,22 @@ async function generateExtraction(prompt, inlineImage) {
  * @param {string} userMessage
  */
 async function generateChatReply(systemPrompt, history, userMessage) {
-  return withRetry(async () => {
-    const model = getChatModel();
-    const chat = model.startChat({
-      history: [
-        { role: "user", parts: [{ text: systemPrompt }] },
-        { role: "model", parts: [{ text: "Understood — I'll stay within those boundaries." }] },
-        ...history.map((turn) => ({ role: turn.role, parts: [{ text: turn.text }] })),
-      ],
-    });
-    const result = await chat.sendMessage(userMessage);
-    return result.response.text();
-  }, "generateChatReply");
+  return withModelFallback(
+    CHAT_MODELS,
+    async (modelName) => {
+      const model = getChatModel(modelName);
+      const chat = model.startChat({
+        history: [
+          { role: "user", parts: [{ text: systemPrompt }] },
+          { role: "model", parts: [{ text: "Understood — I'll stay within those boundaries." }] },
+          ...history.map((turn) => ({ role: turn.role, parts: [{ text: turn.text }] })),
+        ],
+      });
+      const result = await chat.sendMessage(userMessage);
+      return result.response.text();
+    },
+    "generateChatReply"
+  );
 }
 
 module.exports = { generateExtraction, generateChatReply };
