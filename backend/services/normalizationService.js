@@ -11,18 +11,16 @@
 
 const { MARKERS, AMBIGUOUS_BARE_NAMES } = require("../utils/markerAliases");
 
-// Build a flat lookup: normalized alias string -> marker key, once at
-// module load, so exact-match resolution is O(1) per lab test instead of
-// scanning every marker's alias list on every call.
-const ALIAS_LOOKUP = {};
-for (const [markerKey, marker] of Object.entries(MARKERS)) {
-  for (const alias of marker.names) {
-    ALIAS_LOOKUP[normalize(alias)] = markerKey;
-  }
-}
+// Only parentheticals naming the specimen are noise — everything else in
+// brackets can be the very thing that distinguishes two measurements.
+// Stripping all of them collapsed "Neutrophils (DLC)" (a percentage) and
+// "Neutrophils (Absolute)" (a cell count) into one marker, which would put
+// two different units on the same trend line.
+// Declared before ALIAS_LOOKUP below, which calls normalize() at module load.
+const NOISE_PARENTHETICAL = /\s*\((serum|sr|s|plasma|blood|whole blood|edta|venous)\)\s*$/i;
 
 // Strips lab-boilerplate prefixes ("S.", "Sr.", "Serum", "Plasma", "Blood")
-// and parenthetical suffixes ("Creatinine (Sr)"). Deliberately does NOT
+// and specimen parentheticals ("Creatinine (Sr)"). Deliberately does NOT
 // strip "fasting" — the research's own pseudocode did, but that collapses
 // "Fasting Glucose" and plain "Glucose" into the same normalized string,
 // and fasting-vs-random is exactly the kind of ambiguity the research's own
@@ -33,10 +31,20 @@ function normalize(str) {
   return str
     .toLowerCase()
     .replace(/^(s\.?|sr\.?|serum|plasma|blood)\s+/, "")
-    .replace(/\s*\(.*\)\s*$/, "")
+    .replace(NOISE_PARENTHETICAL, "")
     .replace(/[.,]/g, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+// Build a flat lookup: normalized alias string -> marker key, once at
+// module load, so exact-match resolution is O(1) per lab test instead of
+// scanning every marker's alias list on every call.
+const ALIAS_LOOKUP = {};
+for (const [markerKey, marker] of Object.entries(MARKERS)) {
+  for (const alias of marker.names) {
+    ALIAS_LOOKUP[normalize(alias)] = markerKey;
+  }
 }
 
 // Levenshtein edit distance -> similarity ratio (0-100). Backs the fuzzy
@@ -68,15 +76,40 @@ const FUZZY_MATCH_THRESHOLD = 85; // per research section 2
 function resolveMarkerKey(rawTestName) {
   const cleaned = normalize(rawTestName);
 
-  if (AMBIGUOUS_BARE_NAMES.includes(cleaned)) return null;
+  // Try the name as written first, so a distinguishing parenthetical like
+  // "(Absolute)" always wins before the fallback below can discard it.
+  const direct = matchCandidate(cleaned);
+  if (direct) return direct;
 
-  if (ALIAS_LOOKUP[cleaned]) {
-    return { markerKey: ALIAS_LOOKUP[cleaned], matchType: "exact" };
+  // Some parentheticals just restate the name as an abbreviation — e.g.
+  // "Total Leucocyte Count (TLC)". Those carry no extra meaning, so retry
+  // without them. Anything genuinely distinguishing already matched above,
+  // and if dropping the qualifier leaves something ambiguous ("Neutrophils"),
+  // matchCandidate refuses it rather than guessing.
+  const withoutParentheticals = cleaned
+    .replace(/\s*\([^)]*\)/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (withoutParentheticals && withoutParentheticals !== cleaned) {
+    return matchCandidate(withoutParentheticals);
+  }
+
+  return null;
+}
+
+// Exact alias match, then Levenshtein fuzzy fallback for typos.
+// Returns null for names that are ambiguous on their own.
+function matchCandidate(candidate) {
+  if (AMBIGUOUS_BARE_NAMES.includes(candidate)) return null;
+
+  if (ALIAS_LOOKUP[candidate]) {
+    return { markerKey: ALIAS_LOOKUP[candidate], matchType: "exact" };
   }
 
   let best = null;
   for (const [alias, markerKey] of Object.entries(ALIAS_LOOKUP)) {
-    const score = similarityRatio(cleaned, alias);
+    const score = similarityRatio(candidate, alias);
     if (score >= FUZZY_MATCH_THRESHOLD && (!best || score > best.score)) {
       best = { markerKey, score };
     }

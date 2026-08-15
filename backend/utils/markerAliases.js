@@ -116,12 +116,244 @@ const MARKERS = {
     },
     toDisplayUnit: (v) => v / 0.0259,
   },
+
+  // --- Rest of the lipid panel -------------------------------------------
+  // LDL alone left most of a lipid profile unresolved.
+  totalCholesterol: {
+    canonicalName: "Total Cholesterol",
+    names: ["total cholesterol", "cholesterol total", "cholesterol", "t cholesterol"],
+    canonicalUnit: "mmol/l",
+    displayUnit: "mg/dL",
+    unitConversions: { "mg/dl": (v) => v * 0.0259, "mmol/l": (v) => v },
+    toDisplayUnit: (v) => v / 0.0259,
+  },
+  hdlCholesterol: {
+    canonicalName: "HDL Cholesterol",
+    names: ["hdl", "hdl cholesterol", "hdl-c", "high density lipoprotein"],
+    canonicalUnit: "mmol/l",
+    displayUnit: "mg/dL",
+    unitConversions: { "mg/dl": (v) => v * 0.0259, "mmol/l": (v) => v },
+    toDisplayUnit: (v) => v / 0.0259,
+  },
+  triglycerides: {
+    canonicalName: "Triglycerides",
+    names: ["triglycerides", "triglyceride", "tg", "s triglycerides"],
+    canonicalUnit: "mmol/l",
+    displayUnit: "mg/dL",
+    unitConversions: { "mg/dl": (v) => v * 0.0113, "mmol/l": (v) => v },
+    toDisplayUnit: (v) => v / 0.0113,
+  },
+
+  // --- Complete Blood Count ----------------------------------------------
+  // A CBC is one of the most commonly uploaded reports, and previously only
+  // its Hemoglobin line resolved — everything else fell through to
+  // `unresolved` and never reached the trend chart.
+  //
+  // Counts convert cells/cu.mm (what Indian labs print) to the SI 10^9/L by
+  // dividing by 1000; indices and percentages have no meaningful SI
+  // alternative, so canonical and display units are the same for those.
+  wbc: {
+    canonicalName: "Total Leucocyte Count",
+    names: [
+      "total leucocyte count", "total leukocyte count", "tlc", "wbc",
+      "wbc count", "white blood cell count", "total wbc count", "leucocyte count",
+    ],
+    canonicalUnit: "10^9/l",
+    displayUnit: "cells/cu.mm",
+    unitConversions: {
+      "cells/cu.mm": (v) => v / 1000, "cells/cumm": (v) => v / 1000,
+      "/cu.mm": (v) => v / 1000, "cumm": (v) => v / 1000,
+      "cells/ul": (v) => v / 1000, "cells/µl": (v) => v / 1000,
+      "10^9/l": (v) => v, "x10^9/l": (v) => v,
+    },
+    toDisplayUnit: (v) => v * 1000,
+  },
+  platelets: {
+    canonicalName: "Platelet Count",
+    names: ["platelet count", "platelets", "plt", "platelet"],
+    canonicalUnit: "10^9/l",
+    displayUnit: "cells/cu.mm",
+    unitConversions: {
+      "cells/cu.mm": (v) => v / 1000, "cells/cumm": (v) => v / 1000,
+      "/cu.mm": (v) => v / 1000, "cumm": (v) => v / 1000,
+      "cells/ul": (v) => v / 1000, "cells/µl": (v) => v / 1000,
+      "10^9/l": (v) => v, "x10^9/l": (v) => v,
+      // Some Indian labs report platelets in lakhs (1 lakh = 100,000)
+      "lakhs/cu.mm": (v) => v * 100, "lakh/cu.mm": (v) => v * 100,
+    },
+    toDisplayUnit: (v) => v * 1000,
+  },
+  rbc: {
+    canonicalName: "RBC Count",
+    names: ["rbc count", "rbc", "red blood cell count", "total rbc count", "erythrocyte count"],
+    canonicalUnit: "10^12/l",
+    displayUnit: "millions/cu.mm",
+    unitConversions: {
+      // millions/cu.mm and 10^12/L are numerically identical
+      "millions/cu.mm": (v) => v, "million/cu.mm": (v) => v,
+      "mill/cumm": (v) => v, "10^12/l": (v) => v, "x10^12/l": (v) => v,
+    },
+    toDisplayUnit: (v) => v,
+  },
+  hematocrit: {
+    canonicalName: "Hematocrit (PCV)",
+    names: ["hematocrit", "haematocrit", "pcv", "packed cell volume", "hct"],
+    canonicalUnit: "%",
+    displayUnit: "%",
+    unitConversions: { "%": (v) => v },
+    toDisplayUnit: (v) => v,
+  },
+  mcv: {
+    canonicalName: "MCV",
+    names: ["mcv", "mean corpuscular volume", "mean cell volume"],
+    canonicalUnit: "fl",
+    displayUnit: "fL",
+    unitConversions: { fl: (v) => v },
+    toDisplayUnit: (v) => v,
+  },
+  mch: {
+    canonicalName: "MCH",
+    names: ["mch", "mean corpuscular hemoglobin", "mean corpuscular haemoglobin"],
+    canonicalUnit: "pg",
+    displayUnit: "pg",
+    unitConversions: { pg: (v) => v },
+    toDisplayUnit: (v) => v,
+  },
+  mchc: {
+    canonicalName: "MCHC",
+    names: [
+      "mchc", "mean corpuscular hemoglobin concentration",
+      "mean corpuscular haemoglobin concentration",
+    ],
+    canonicalUnit: "g/dl",
+    displayUnit: "g/dL",
+    unitConversions: { "g/dl": (v) => v, "g/l": (v) => v / 10 },
+    toDisplayUnit: (v) => v,
+  },
+  rdw: {
+    canonicalName: "RDW",
+    names: ["rdw", "red cell distribution width", "rdw-cv"],
+    canonicalUnit: "%",
+    displayUnit: "%",
+    unitConversions: { "%": (v) => v },
+    toDisplayUnit: (v) => v,
+  },
+
+  // Differential count — percentage and absolute are genuinely different
+  // measurements (36.4 % vs 1201 cells/cu.mm), so each gets its own marker
+  // rather than being merged onto one line. See NOISE_PARENTHETICAL in
+  // normalizationService.js, which keeps "(DLC)" / "(Absolute)" intact so
+  // these can be told apart.
+  neutrophilsPercent: {
+    canonicalName: "Neutrophils (%)",
+    names: ["neutrophils (dlc)", "neutrophils %", "neutrophil %", "neutrophils percentage", "polymorphs"],
+    canonicalUnit: "%", displayUnit: "%",
+    unitConversions: { "%": (v) => v }, toDisplayUnit: (v) => v,
+  },
+  lymphocytesPercent: {
+    canonicalName: "Lymphocytes (%)",
+    names: ["lymphocytes (dlc)", "lymphocytes %", "lymphocyte %", "lymphocytes percentage"],
+    canonicalUnit: "%", displayUnit: "%",
+    unitConversions: { "%": (v) => v }, toDisplayUnit: (v) => v,
+  },
+  eosinophilsPercent: {
+    canonicalName: "Eosinophils (%)",
+    names: ["eosinophils (dlc)", "eosinophils %", "eosinophil %", "eosinophils percentage"],
+    canonicalUnit: "%", displayUnit: "%",
+    unitConversions: { "%": (v) => v }, toDisplayUnit: (v) => v,
+  },
+  monocytesPercent: {
+    canonicalName: "Monocytes (%)",
+    names: ["monocytes (dlc)", "monocytes %", "monocyte %", "monocytes percentage"],
+    canonicalUnit: "%", displayUnit: "%",
+    unitConversions: { "%": (v) => v }, toDisplayUnit: (v) => v,
+  },
+  basophilsPercent: {
+    canonicalName: "Basophils (%)",
+    names: ["basophils (dlc)", "basophils %", "basophil %", "basophils percentage"],
+    canonicalUnit: "%", displayUnit: "%",
+    unitConversions: { "%": (v) => v }, toDisplayUnit: (v) => v,
+  },
+  neutrophilsAbsolute: {
+    canonicalName: "Neutrophils (Absolute)",
+    names: ["neutrophils (absolute)", "absolute neutrophil count", "anc", "neutrophils absolute"],
+    canonicalUnit: "10^9/l", displayUnit: "cells/cu.mm",
+    unitConversions: {
+      "cells/cu.mm": (v) => v / 1000, "cells/cumm": (v) => v / 1000,
+      "cells/ul": (v) => v / 1000, "cells/µl": (v) => v / 1000, "10^9/l": (v) => v,
+    },
+    toDisplayUnit: (v) => v * 1000,
+  },
+  lymphocytesAbsolute: {
+    canonicalName: "Lymphocytes (Absolute)",
+    names: ["lymphocytes (absolute)", "absolute lymphocyte count", "alc", "lymphocytes absolute"],
+    canonicalUnit: "10^9/l", displayUnit: "cells/cu.mm",
+    unitConversions: {
+      "cells/cu.mm": (v) => v / 1000, "cells/cumm": (v) => v / 1000,
+      "cells/ul": (v) => v / 1000, "cells/µl": (v) => v / 1000, "10^9/l": (v) => v,
+    },
+    toDisplayUnit: (v) => v * 1000,
+  },
+  eosinophilsAbsolute: {
+    canonicalName: "Eosinophils (Absolute)",
+    names: ["eosinophils (absolute)", "absolute eosinophil count", "aec", "eosinophils absolute"],
+    canonicalUnit: "10^9/l", displayUnit: "cells/cu.mm",
+    unitConversions: {
+      "cells/cu.mm": (v) => v / 1000, "cells/cumm": (v) => v / 1000,
+      "cells/ul": (v) => v / 1000, "cells/µl": (v) => v / 1000, "10^9/l": (v) => v,
+    },
+    toDisplayUnit: (v) => v * 1000,
+  },
+  monocytesAbsolute: {
+    canonicalName: "Monocytes (Absolute)",
+    names: ["monocytes (absolute)", "absolute monocyte count", "amc", "monocytes absolute"],
+    canonicalUnit: "10^9/l", displayUnit: "cells/cu.mm",
+    unitConversions: {
+      "cells/cu.mm": (v) => v / 1000, "cells/cumm": (v) => v / 1000,
+      "cells/ul": (v) => v / 1000, "cells/µl": (v) => v / 1000, "10^9/l": (v) => v,
+    },
+    toDisplayUnit: (v) => v * 1000,
+  },
+
+  // --- Renal / metabolic --------------------------------------------------
+  urea: {
+    canonicalName: "Blood Urea",
+    names: ["urea", "blood urea", "s urea", "bun", "blood urea nitrogen"],
+    canonicalUnit: "mmol/l",
+    displayUnit: "mg/dL",
+    unitConversions: { "mg/dl": (v) => v * 0.357, "mmol/l": (v) => v },
+    toDisplayUnit: (v) => v / 0.357,
+  },
+  uricAcid: {
+    canonicalName: "Uric Acid",
+    names: ["uric acid", "s uric acid", "serum uric acid"],
+    canonicalUnit: "umol/l",
+    displayUnit: "mg/dL",
+    unitConversions: { "mg/dl": (v) => v * 59.48, "umol/l": (v) => v, "µmol/l": (v) => v },
+    toDisplayUnit: (v) => v / 59.48,
+  },
+  sodium: {
+    canonicalName: "Sodium",
+    names: ["sodium", "s sodium", "serum sodium", "na+", "na"],
+    canonicalUnit: "mmol/l",
+    displayUnit: "mEq/L",
+    unitConversions: { "meq/l": (v) => v, "mmol/l": (v) => v },
+    toDisplayUnit: (v) => v,
+  },
 };
 
 // Test names that are clinically ambiguous on their own (fasting vs. random
 // vs. post-prandial glucose; "T3" as a standalone test vs. a thyroid-panel
 // component) — normalizationService refuses to guess on these rather than
 // silently picking one, per the research's failure-mode table (section 4).
-const AMBIGUOUS_BARE_NAMES = ["glucose", "blood sugar", "blood glucose", "t3"];
+//
+// The bare differential names sit here for the same reason: "Neutrophils"
+// with no qualifier could be the percentage or the absolute count, which
+// are different measurements in different units. Qualified forms
+// ("Neutrophils (DLC)", "Neutrophils (Absolute)") resolve normally.
+const AMBIGUOUS_BARE_NAMES = [
+  "glucose", "blood sugar", "blood glucose", "t3",
+  "neutrophils", "lymphocytes", "eosinophils", "monocytes", "basophils",
+];
 
 module.exports = { MARKERS, AMBIGUOUS_BARE_NAMES };
