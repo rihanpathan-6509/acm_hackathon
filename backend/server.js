@@ -50,7 +50,26 @@ const PORT = process.env.PORT || 4001;
 if (require.main === module) {
   connectDB()
     .then(() => {
-      app.listen(PORT, () => console.log(`ChronicCare-AI server running on port ${PORT}`));
+      const server = app.listen(PORT, () =>
+        console.log(`ChronicCare-AI server running on port ${PORT}`)
+      );
+
+      // Without this, a port collision prints a raw "Unhandled 'error'
+      // event" stack trace that buries the one line that matters. Usually
+      // it just means an older server is still running in another terminal.
+      server.on("error", (err) => {
+        if (err.code === "EADDRINUSE") {
+          console.error(
+            `\nPort ${PORT} is already in use — an older server is probably still running.\n` +
+              `Stop it with Ctrl+C in its terminal, or free the port:\n` +
+              `  Windows:  npx kill-port ${PORT}\n` +
+              `  Or run this one elsewhere:  PORT=4002 npm start\n`
+          );
+        } else {
+          console.error(`Server failed to start: ${err.message}`);
+        }
+        process.exit(1);
+      });
     })
     .catch((err) => {
       console.error(`Failed to connect to MongoDB: ${err.message}`);
