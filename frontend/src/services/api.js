@@ -20,6 +20,14 @@ async function request(path, options = {}) {
   return data;
 }
 
+// Shared in-flight request. Without this, every component that calls
+// getOrCreatePatientId() on mount races the others: they all read an empty
+// localStorage before any of them finishes writing to it, so each one
+// POSTs its own patient. That created 4 patients per page load (2
+// components x StrictMode's double-mount) and silently split data across
+// them — uploads saved under one id while the dashboard read another.
+let inFlightPatientId = null;
+
 // No auth yet on the backend (middleware/auth.js is a stub) — one patient
 // per browser for now, created once via POST /patients and cached in
 // localStorage. Replace this with real auth-derived identity once that
@@ -29,12 +37,25 @@ export async function getOrCreatePatientId() {
   const cached = localStorage.getItem(PATIENT_ID_KEY);
   if (cached) return cached;
 
-  const { patient } = await request("/patients", {
-    method: "POST",
-    body: JSON.stringify({ name: "Demo Patient" }),
-  });
-  localStorage.setItem(PATIENT_ID_KEY, patient._id);
-  return patient._id;
+  // Callers that arrive while a create is already running share its result
+  // instead of starting another. Safe because the check-and-assign below is
+  // synchronous, so no caller can slip between them.
+  if (inFlightPatientId) return inFlightPatientId;
+
+  inFlightPatientId = (async () => {
+    try {
+      const { patient } = await request("/patients", {
+        method: "POST",
+        body: JSON.stringify({ name: "Demo Patient" }),
+      });
+      localStorage.setItem(PATIENT_ID_KEY, patient._id);
+      return patient._id;
+    } finally {
+      inFlightPatientId = null;
+    }
+  })();
+
+  return inFlightPatientId;
 }
 
 export async function extractDocument(base64Image, mimeType) {

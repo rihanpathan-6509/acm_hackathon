@@ -21,7 +21,10 @@ function extractStatus(err) {
   // Newer SDK versions expose .status; older ones only put it in the
   // message, e.g. "[503 Service Unavailable] This model is currently...".
   if (typeof err?.status === "number") return err.status;
-  const match = /\[(\d{3})\s/.exec(err?.message || "");
+  // Matches both "[503 Service Unavailable]" and a bare "[503]" — anchoring
+  // on a trailing space silently failed to parse the latter, which meant
+  // falling through to "not retryable" and giving up on a retryable error.
+  const match = /\[(\d{3})[\s\]]/.exec(err?.message || "");
   return match ? Number(match[1]) : null;
 }
 
@@ -37,12 +40,15 @@ function extractHintedDelayMs(err) {
   return null;
 }
 
-// A 429 with "limit: 0" is a quota that doesn't exist rather than one
-// that's temporarily exhausted (this is what gemini-pro-latest returns on
-// the free tier — see config/gemini.js). Retrying that just wastes the
-// user's time, since it will never succeed.
-function isZeroQuota(err) {
-  return /limit:\s*0\b/.test(err?.message || "");
+// Some 429s are worth retrying and some are hopeless. Retrying a quota
+// that resets per-minute makes sense; retrying one that resets per-DAY, or
+// one that is zero to begin with, just burns ~30s before failing anyway.
+//   - "limit: 0"  -> quota doesn't exist at all (what gemini-pro-latest
+//                    returns on the free tier — see config/gemini.js)
+//   - "...PerDay..." quotaId -> daily allowance is spent; nothing to wait for
+function isUnrecoverableQuota(err) {
+  const message = err?.message || "";
+  return /limit:\s*0\b/.test(message) || /"quotaId":\s*"[^"]*PerDay[^"]*"/.test(message);
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -58,7 +64,9 @@ async function withRetry(fn, label) {
       const status = extractStatus(err);
 
       const worthRetrying =
-        RETRYABLE_STATUSES.includes(status) && !isZeroQuota(err) && attempt < MAX_ATTEMPTS;
+        RETRYABLE_STATUSES.includes(status) &&
+        !isUnrecoverableQuota(err) &&
+        attempt < MAX_ATTEMPTS;
 
       if (!worthRetrying) throw err;
 

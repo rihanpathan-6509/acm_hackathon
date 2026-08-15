@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { getLabs, getOrCreatePatientId } from "../services/api";
 import {
   LineChart,
@@ -11,16 +11,42 @@ import {
 } from "recharts";
 
 export default function TrendChart() {
-  const [chartData, setChartData] = useState([]);
+  const [labMarkers, setLabMarkers] = useState([]);
+  const [selectedMarker, setSelectedMarker] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Fetch every marker, not just HbA1c — this used to hardcode
+    // markerKey: "hba1c", so uploading a report containing anything else
+    // (creatinine, hemoglobin, ...) saved fine but showed nothing here.
     getOrCreatePatientId()
-      .then((patientId) => getLabs(patientId, "hba1c"))
-      .then((res) => setChartData(res.labMarkers || []))
-      .catch(() => setChartData([]))
+      .then((patientId) => getLabs(patientId))
+      .then((res) => setLabMarkers(res.labMarkers || []))
+      .catch(() => setLabMarkers([]))
       .finally(() => setLoading(false));
   }, []);
+
+  // Group readings by marker so each one gets its own trend line.
+  const byMarker = useMemo(() => {
+    const groups = {};
+    for (const reading of labMarkers) {
+      if (!groups[reading.markerKey]) groups[reading.markerKey] = [];
+      groups[reading.markerKey].push(reading);
+    }
+    for (const key of Object.keys(groups)) {
+      groups[key].sort((a, b) => new Date(a.date) - new Date(b.date));
+    }
+    return groups;
+  }, [labMarkers]);
+
+  const markerKeys = Object.keys(byMarker);
+
+  // Default to the first marker that actually has data, but don't fight the
+  // user's choice once they've picked one.
+  const activeMarker =
+    selectedMarker && byMarker[selectedMarker] ? selectedMarker : markerKeys[0];
+  const chartData = activeMarker ? byMarker[activeMarker] : [];
+  const markerLabel = chartData[0]?.canonicalName || activeMarker || "";
 
   // Mongo serializes `date` as a full ISO timestamp
   // ("2026-08-01T00:00:00.000Z"), unlike the plain "2026-08-01" the old
@@ -50,30 +76,50 @@ export default function TrendChart() {
 
   return (
     <div className="p-6">
-      <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-        <svg
-          className="w-5 h-5 text-blue-500"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"
-          ></path>
-        </svg>
-        Health Trends (HbA1c)
-      </h2>
+      <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
+        <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+          <svg
+            className="w-5 h-5 text-blue-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"
+            ></path>
+          </svg>
+          Health Trends{markerLabel ? ` (${markerLabel})` : ""}
+        </h2>
 
-      {loading && (
-        <p className="text-sm text-gray-500 mb-4">Loading...</p>
-      )}
+        {markerKeys.length > 1 && (
+          <select
+            value={activeMarker}
+            onChange={(e) => setSelectedMarker(e.target.value)}
+            className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {markerKeys.map((key) => (
+              <option key={key} value={key}>
+                {byMarker[key][0]?.canonicalName || key}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+
+      {loading && <p className="text-sm text-gray-500 mb-4">Loading...</p>}
 
       {!loading && chartData.length === 0 && (
         <p className="text-sm text-gray-500 mb-4">
-          No HbA1c readings yet — upload a lab report to see a trend here.
+          No lab readings yet — upload a lab report to see a trend here.
+        </p>
+      )}
+
+      {!loading && chartData.length === 1 && (
+        <p className="text-sm text-gray-500 mb-4">
+          Only one reading so far — upload another report to see a trend line.
         </p>
       )}
 
@@ -110,7 +156,7 @@ export default function TrendChart() {
               labelFormatter={formatDate}
               formatter={(value, name, props) => [
                 `${value} ${props.payload.displayUnit}`,
-                "Value",
+                props.payload.canonicalName || "Value",
               ]}
             />
             <Line
