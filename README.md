@@ -35,8 +35,6 @@ backend/
     ├── drugCatalog.js            ~50 common Indian generics, used to reduce hallucination
     ├── markerAliases.js          Alias/unit table: "HbA1c"/"A1C"/"Glycated Hb" -> one marker
     └── emergencyKeywords.js      DRAFT starter list for backend's emergency-detection system
-
-index.js   Standalone entrypoint for testing extraction/chat without MongoDB
 ```
 
 ## Owned pieces (Rihan, AI/ML)
@@ -49,8 +47,10 @@ invented.
 
 1. Set `GEMINI_API_KEY` in `.env`.
 2. `npm install`.
-3. For extraction/chat only, no MongoDB needed: `node index.js`.
-4. For the full merged app (needs `MONGODB_URI` in `.env` too): `node backend/server.js`.
+3. `npm start` (runs `backend/server.js`). `MONGODB_URI` in `.env` is
+   optional for now — extraction/chat don't touch the database, and the
+   routes that do (medication/lab/reminder) are still stubs. It'll warn if
+   Mongo isn't connected, not crash.
 
 `normalizationService.js` currently resolves 7 markers (HbA1c, Creatinine,
 Hemoglobin, TSH, Fasting Glucose, Potassium, LDL). Extend

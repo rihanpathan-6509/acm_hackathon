@@ -148,13 +148,16 @@ time, vs. a context object the caller builds and passes in):
 ```
 
 ### e. How this mounts into the real app
-`backend/server.js` is now the real merged-app entrypoint — it mounts
-extract/chat routes alongside the medication/lab/reminder route stubs, and
-requires a MongoDB connection (`config/mongodb.js`) to boot at all. `index.js`
-still exists at the project root as a standalone runner for testing just
-extraction/chat without needing Mongo running. Once you add real logic to
-the medication/lab/reminder pieces, `server.js` should just work — nothing
-else needs to change on my end for that.
+`backend/server.js` (`npm start`) is the single entrypoint — it mounts
+extract/chat routes alongside the medication/lab/reminder route stubs.
+MongoDB connection (`config/mongodb.js`) is attempted but currently
+**non-fatal** if it's not configured or fails — extraction/chat don't touch
+the database at all, and the routes that would (medication/lab/reminder)
+are still stubs, so there was no reason to block the whole app on a DB
+connection nothing yet depends on. There's a `TODO` in `server.js` to make
+that connection fatal again once your real Mongo-backed routes land —
+worth doing that change yourselves once you're ready, so the app doesn't
+silently run without a DB it actually needs.
 
 ---
 

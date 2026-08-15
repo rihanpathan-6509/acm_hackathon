@@ -2,10 +2,10 @@
   "name": "rihan-ai-ml",
   "version": "0.1.0",
   "description": "AI/ML slice: extraction schema, marker normalization, chat companion guardrails — ChronicCare AI (with Trendline)",
-  "main": "index.js",
+  "main": "backend/server.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js"
+    "start": "node backend/server.js",
+    "dev": "nodemon backend/server.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",

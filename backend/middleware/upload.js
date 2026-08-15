@@ -14,7 +14,7 @@ const multer = require("multer");
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 15 * 1024 * 1024 }, // 15MB, matches index.js's JSON body limit
+  limits: { fileSize: 15 * 1024 * 1024 }, // 15MB, matches server.js's JSON body limit
 });
 
 module.exports = { upload };
