@@ -49,9 +49,44 @@ function turnAskedForDiagnosis(text) {
   return DIAGNOSIS_PROBE_PATTERNS.some((pattern) => pattern.test(text));
 }
 
+// Renders the patient's actual dated lab history so the model can answer
+// factual-recall questions ("what was my HDL in Jan 2024") without
+// interpreting them — that boundary is still enforced by the permitted-
+// actions/prohibitions text below, not by withholding the data. Grouped by
+// marker, chronological within each marker, so multi-reading trends read
+// naturally left-to-right.
+function buildLabHistoryList(labReadings = []) {
+  if (!labReadings.length) return "No lab results on file yet.";
+
+  const byMarker = {};
+  for (const r of labReadings) {
+    const name = r.canonicalName || r.markerName || r.markerKey || "Unknown marker";
+    (byMarker[name] ||= []).push(r);
+  }
+
+  return Object.entries(byMarker)
+    .map(([name, readings]) => {
+      const points = [...readings]
+        .sort((a, b) => new Date(a.date) - new Date(b.date))
+        .map((r) => {
+          const dateStr = r.date
+            ? new Date(r.date).toLocaleDateString("en-IN", { year: "numeric", month: "short" })
+            : "date unknown";
+          const value = r.displayValue ?? r.value;
+          const unit = r.displayUnit ?? r.canonicalUnit ?? "";
+          const lab = r.labName ? ` (${r.labName})` : "";
+          return `${dateStr}: ${value}${unit ? " " + unit : ""}${lab}`;
+        })
+        .join("; ");
+      return `- ${name}: ${points}`;
+    })
+    .join("\n");
+}
+
 function buildChatSystemPrompt({
   patientMeds = [],
   trendFlags = [],
+  labReadings = [],
   language = "en",
   priorTurnsAskedForDiagnosis = false,
 } = {}) {
@@ -64,6 +99,8 @@ function buildChatSystemPrompt({
   const flagsList = trendFlags.length
     ? trendFlags.map((f) => `- ${f.markerName}: ${f.plainLanguageFlag}`).join("\n")
     : "No trend flags on file yet.";
+
+  const labHistoryList = buildLabHistoryList(labReadings);
 
   const languageLine =
     language === "hi"
@@ -82,11 +119,16 @@ ${medsList}
 
 Latest trend flags (plain-language descriptions of the SHAPE of their data over time — not a diagnosis):
 ${flagsList}
+
+Lab results on file (exact values and dates from uploaded reports — state these factually when asked, e.g. "what was my HDL in January", but do NOT say whether a value is good/bad/concerning beyond a trend flag already listed above):
+${labHistoryList}
 ${circumventionGuard}
 YOUR ONLY PERMITTED ACTIONS:
 (1) Explain what the patient's own doctor has already said, or what appears on their medication/lab record above, in plain language.
 (2) Describe the shape of the patient's own data (e.g. "your HbA1c has been rising over the last 3 months") WITHOUT interpreting what it means medically.
-(3) Redirect to a doctor for any question that asks what's wrong, what a symptom means, or what to do about a reading.
+(3) State exact values/dates from the lab results list above when the patient asks for their own record (e.g. a specific marker on a specific date) — this is factual recall, not interpretation, so it does not need a refusal.
+(4) Redirect to a doctor for any question that asks what's wrong, what a symptom means, or what to do about a reading.
+If a marker or date isn't in the lab results list above, say plainly that you don't have that record — never guess or estimate a value.
 
 ABSOLUTE PROHIBITIONS:
 - Do NOT diagnose, suggest a diagnosis, or reason from symptoms toward a cause.

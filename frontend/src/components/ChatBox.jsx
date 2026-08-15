@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { sendChatMessage, getOrCreatePatientId } from "../services/api";
+import { sendChatMessage, getOrCreatePatientId, getMedications, getLabs } from "../services/api";
 
 export default function ChatBox() {
   const [messages, setMessages] = useState([]);
@@ -21,21 +21,36 @@ export default function ChatBox() {
     setInput("");
     setLoading(true);
 
-    // TODO: pull real patientMeds/trendFlags once those GET endpoints are
-    // wired in here too (getMedications/getLabs) — hardcoded placeholder
-    // for now, same shape the backend already expects.
-    const patientContext = {
-      patientMeds: [{ drugName: "Metformin", dose: "500 mg", timing: "BD" }],
-      trendFlags: [
-        {
-          markerName: "HbA1c",
-          plainLanguageFlag: "rising over the last 3 months",
-        },
-      ],
-      language: language,
-    };
-
     try {
+      // Fetched fresh on every send (not cached in state) so a report the
+      // patient just uploaded this session is already visible to the next
+      // message, instead of needing a page reload.
+      const [medsRes, labsRes] = await Promise.all([
+        patientId ? getMedications(patientId).catch(() => ({ medications: [] })) : { medications: [] },
+        patientId ? getLabs(patientId).catch(() => ({ labMarkers: [] })) : { labMarkers: [] },
+      ]);
+
+      const patientContext = {
+        patientMeds: (medsRes.medications || []).map((m) => ({
+          drugName: m.drugName,
+          dose: m.dose,
+          timing: m.timing,
+        })),
+        // trendFlags stays empty until a real trend-detection pass exists —
+        // labReadings below already lets the model answer factual
+        // "what was my X on date Y" questions without it.
+        trendFlags: [],
+        labReadings: (labsRes.labMarkers || []).map((r) => ({
+          canonicalName: r.canonicalName,
+          markerKey: r.markerKey,
+          displayValue: r.displayValue,
+          displayUnit: r.displayUnit,
+          date: r.date,
+          labName: r.labName,
+        })),
+        language: language,
+      };
+
       const res = await sendChatMessage(input, patientId, patientContext, messages);
       setMessages([...currentHistory, { role: "model", text: res.reply }]);
     } catch (err) {
