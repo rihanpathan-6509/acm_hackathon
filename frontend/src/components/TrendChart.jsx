@@ -22,6 +22,15 @@ export default function TrendChart() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Mongo serializes `date` as a full ISO timestamp
+  // ("2026-08-01T00:00:00.000Z"), unlike the plain "2026-08-01" the old
+  // mock returned — without this the axis renders unreadable raw strings.
+  const formatDate = (value) => {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return value;
+    return d.toLocaleDateString(undefined, { month: "short", year: "numeric" });
+  };
+
   const renderCustomDot = (props) => {
     const { cx, cy, payload } = props;
     if (payload.isAbnormal || payload.needsReview) {
@@ -81,6 +90,7 @@ export default function TrendChart() {
             />
             <XAxis
               dataKey="date"
+              tickFormatter={formatDate}
               axisLine={false}
               tickLine={false}
               tick={{ fill: "#6b7280", fontSize: 12 }}
@@ -97,6 +107,7 @@ export default function TrendChart() {
                 border: "none",
                 boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
               }}
+              labelFormatter={formatDate}
               formatter={(value, name, props) => [
                 `${value} ${props.payload.displayUnit}`,
                 "Value",

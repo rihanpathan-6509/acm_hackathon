@@ -5,7 +5,10 @@
   "main": "backend/server.js",
   "scripts": {
     "start": "node backend/server.js",
-    "dev": "nodemon backend/server.js"
+    "dev": "nodemon backend/server.js",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:all": "concurrently -n backend,frontend -c blue,magenta \"npm run dev\" \"npm run dev:frontend\"",
+    "setup": "npm install && npm --prefix frontend install"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
@@ -17,6 +20,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "concurrently": "^10.0.5",
     "nodemon": "^3.1.4"
   }
 }
