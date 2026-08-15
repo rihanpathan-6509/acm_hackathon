@@ -18,7 +18,12 @@ const { z } = require("zod");
 
 const Medication = z.object({
   drug_name: z.string(),
-  dose: z.string(),
+  // Nullable like instructions/duration: real prescriptions genuinely omit
+  // a numeric dose sometimes (e.g. "Crocin SOS" with no strength written),
+  // and the prompt's own "flag, don't guess" rule means Gemini correctly
+  // returns null there rather than inventing a number — the schema was the
+  // thing out of sync, not the extraction.
+  dose: z.string().nullable().default(null),
   timing: z.string(),
   instructions: z.string().nullable().default(null),
   duration: z.string().nullable().default(null),

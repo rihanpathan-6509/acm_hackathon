@@ -261,7 +261,7 @@ export default function Upload() {
                                 : "text-gray-900"
                             }
                           >
-                            {med.dose}
+                            {med.dose || "Not stated"}
                           </span>
                         </div>
                         <div>

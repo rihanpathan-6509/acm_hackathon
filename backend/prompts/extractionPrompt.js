@@ -17,7 +17,7 @@ const JSON_SCHEMA_DESCRIPTION = `{
     "date": string (YYYY-MM-DD) | null,
     "medications": [{
       "drug_name": string,
-      "dose": string,
+      "dose": string | null,
       "timing": string,
       "instructions": string | null,
       "duration": string | null,
@@ -72,8 +72,11 @@ HARD RULES
    names, or units at this stage (e.g. do not convert "HbA1c" to
    "Glycated Hemoglobin" — a separate step handles that later). Do not
    round or convert numeric values.
-3. Do not infer missing fields. If duration, timing, or a reference range is
-   not stated, leave it null. Do not assume a "typical" value.
+3. Do not infer missing fields. If dose, duration, timing, or a reference
+   range is not stated, leave it null (e.g. an "SOS"/"as needed" entry with
+   no strength written has a genuinely null dose — leave it null rather
+   than guessing a common strength for that drug). Do not assume a
+   "typical" value.
 4. "is_abnormal" (lab tests only) must come ONLY from an explicit marker on
    the report itself (H/L flag, bold text, asterisk, out-of-range coloring
    described in the image). If the report does not mark it, leave null. Do
