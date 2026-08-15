@@ -1,12 +1,10 @@
 // routes/reminderRoutes.js
-//
-// STUB — reminder endpoints are backend's to design. Empty router so
-// server.js can mount this without breaking before the real routes exist.
-
 const express = require("express");
 const router = express.Router();
+const reminderController = require("../controllers/reminderController");
 
-// TODO: backend to add real routes, e.g.
-// router.patch("/reminders/:id/taken", reminderController.markTaken);
+router.get("/reminders/:patientId", reminderController.listForPatient);
+router.patch("/reminders/:id/taken", reminderController.markTaken);
+router.patch("/reminders/:id/deactivate", reminderController.deactivate);
 
 module.exports = router;

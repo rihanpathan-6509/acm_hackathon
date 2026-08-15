@@ -13,12 +13,18 @@ if (!process.env.GEMINI_API_KEY) {
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+// gemini-1.5-pro/-flash were retired by Google (404 "no longer available to
+// new users" as of this build) — same for 2.5-pro/2.5-flash on this key.
+// Using the "-latest" aliases instead of a pinned version: Google's own
+// deprecation message recommends this, and it means this file doesn't need
+// another emergency fix the next time a dated model gets sunset.
+
 // Vision-capable model — needed because extraction reads the
 // prescription/lab image directly (no separate OCR stage).
-const EXTRACTION_MODEL = "gemini-1.5-pro";
+const EXTRACTION_MODEL = "gemini-pro-latest";
 
 // Text model for the chat companion — no need for vision here.
-const CHAT_MODEL = "gemini-1.5-flash";
+const CHAT_MODEL = "gemini-flash-latest";
 
 function getExtractionModel() {
   return genAI.getGenerativeModel({
