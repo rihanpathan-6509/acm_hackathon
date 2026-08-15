@@ -1,3 +1,22 @@
+# ChronicCare AI — Frontend
+
+## Backend setup
+
+This app talks to the ChronicCare AI backend (see this repo's `backend/` —
+extraction, chat, patients, medications, labs, reminders).
+
+1. Copy `.env.example` to `.env` and adjust `VITE_API_BASE_URL` if the
+   backend isn't running on `http://localhost:4001`.
+2. Start the backend first (`npm start` from the repo root — it needs
+   `GEMINI_API_KEY` and a running MongoDB).
+3. `npm install && npm run dev` here.
+
+There's no auth yet, so the app creates one demo patient per browser on
+first load (cached in `localStorage`) — see `getOrCreatePatientId()` in
+`src/services/api.js`.
+
+---
+
 # React + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.

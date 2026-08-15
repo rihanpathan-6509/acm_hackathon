@@ -1,15 +1,16 @@
-import React, { useEffect, useState } from "react";
-import { mockExtractPrescription } from "../services/api";
+import { useEffect, useState } from "react";
+import { getMedications, getOrCreatePatientId } from "../services/api";
 
 export default function ReminderList() {
   const [medications, setMedications] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    mockExtractPrescription().then((res) => {
-      if (res.extraction?.prescription?.medications) {
-        setMedications(res.extraction.prescription.medications);
-      }
-    });
+    getOrCreatePatientId()
+      .then((patientId) => getMedications(patientId))
+      .then((res) => setMedications(res.medications || []))
+      .catch(() => setMedications([]))
+      .finally(() => setLoading(false));
   }, []);
 
   return (
@@ -31,17 +32,19 @@ export default function ReminderList() {
         Active Reminders
       </h2>
 
-      {medications.length === 0 ? (
+      {loading ? (
+        <p className="text-gray-500 text-sm">Loading...</p>
+      ) : medications.length === 0 ? (
         <p className="text-gray-500 text-sm">No active reminders found.</p>
       ) : (
         <div className="space-y-4">
-          {medications.map((med, index) => (
+          {medications.map((med) => (
             <div
-              key={index}
+              key={med._id}
               className="p-4 bg-gray-50 rounded-lg border border-gray-100 hover:border-blue-200 transition-colors"
             >
               <h3 className="font-bold text-gray-900">
-                {med.drug_name}{" "}
+                {med.drugName}{" "}
                 <span className="text-blue-600 font-medium">— {med.dose}</span>
               </h3>
               <div className="mt-2 space-y-1 text-sm text-gray-600">

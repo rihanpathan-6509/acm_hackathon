@@ -1,11 +1,16 @@
-import React, { useState } from "react";
-import { mockChatResponse } from "../services/api";
+import { useState, useEffect } from "react";
+import { sendChatMessage, getOrCreatePatientId } from "../services/api";
 
 export default function ChatBox() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [language, setLanguage] = useState("en");
   const [loading, setLoading] = useState(false);
+  const [patientId, setPatientId] = useState(null);
+
+  useEffect(() => {
+    getOrCreatePatientId().then(setPatientId).catch(() => {});
+  }, []);
 
   const handleSend = async () => {
     if (!input.trim()) return;
@@ -16,6 +21,9 @@ export default function ChatBox() {
     setInput("");
     setLoading(true);
 
+    // TODO: pull real patientMeds/trendFlags once those GET endpoints are
+    // wired in here too (getMedications/getLabs) — hardcoded placeholder
+    // for now, same shape the backend already expects.
     const patientContext = {
       patientMeds: [{ drugName: "Metformin", dose: "500 mg", timing: "BD" }],
       trendFlags: [
@@ -27,11 +35,17 @@ export default function ChatBox() {
       language: language,
     };
 
-    const res = await mockChatResponse(input, patientContext, messages);
-
-    const aiMessage = { role: "model", text: res.reply };
-    setMessages([...currentHistory, aiMessage]);
-    setLoading(false);
+    try {
+      const res = await sendChatMessage(input, patientId, patientContext, messages);
+      setMessages([...currentHistory, { role: "model", text: res.reply }]);
+    } catch (err) {
+      setMessages([
+        ...currentHistory,
+        { role: "model", text: `Something went wrong: ${err.message}` },
+      ]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

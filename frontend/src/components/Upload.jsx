@@ -1,22 +1,101 @@
-import React, { useState } from "react";
-import { mockExtractPrescription, mockExtractLabReport } from "../services/api";
+import { useState, useEffect, useRef } from "react";
+import {
+  extractDocument,
+  saveMedication,
+  saveLabReadings,
+  getOrCreatePatientId,
+} from "../services/api";
+
+const ACCEPTED_TYPES = [
+  "image/jpeg", "image/jpg", "image/png", "image/webp",
+  "image/heic", "image/heif", "application/pdf",
+];
+// ~18MB original file — the backend's 25MB JSON body limit divided back
+// down from base64's ~33% size inflation.
+const MAX_FILE_SIZE = 18 * 1024 * 1024;
+
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 export default function Upload() {
+  const [patientId, setPatientId] = useState(null);
   const [data, setData] = useState(null);
+  const [normalized, setNormalized] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [dragActive, setDragActive] = useState(false);
+  const [saveState, setSaveState] = useState("idle"); // idle | saving | saved | error
+  const [reminderSummary, setReminderSummary] = useState([]);
+  const fileInputRef = useRef(null);
 
-  const handleLoadPrescription = async () => {
+  useEffect(() => {
+    getOrCreatePatientId().catch((err) => setError(err.message)).then(setPatientId);
+  }, []);
+
+  const handleFile = async (file) => {
+    if (!file) return;
+    setError(null);
+    setData(null);
+    setNormalized(null);
+    setSaveState("idle");
+    setReminderSummary([]);
+
+    if (!ACCEPTED_TYPES.includes(file.type)) {
+      setError(`Unsupported file type "${file.type || "unknown"}". Upload a JPEG, PNG, WEBP, HEIC, or PDF.`);
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      setError(`File is too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Max is ~18MB.`);
+      return;
+    }
+
     setLoading(true);
-    const res = await mockExtractPrescription();
-    setData(res.extraction);
-    setLoading(false);
+    try {
+      const base64 = await readFileAsBase64(file);
+      const res = await extractDocument(base64, file.type);
+      setData(res.extraction);
+      setNormalized(res.normalized || null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleLoadLabReport = async () => {
-    setLoading(true);
-    const res = await mockExtractLabReport();
-    setData(res.extraction);
-    setLoading(false);
+  const handleInputChange = (e) => handleFile(e.target.files?.[0]);
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragActive(false);
+    handleFile(e.dataTransfer.files?.[0]);
+  };
+
+  const handleConfirmSave = async () => {
+    if (!data || !patientId) return;
+    setSaveState("saving");
+    try {
+      if (data.input_type === "prescription" && data.prescription) {
+        const meds = data.prescription.medications;
+        const results = await Promise.all(
+          meds.map((med) => saveMedication(patientId, med, data.requires_manual_review))
+        );
+        setReminderSummary(
+          results.map((r, i) => ({ drugName: meds[i].drug_name, ...r.reminders }))
+        );
+      } else if (data.input_type === "lab_report" && normalized?.series) {
+        await saveLabReadings(patientId, normalized.series);
+      }
+      setSaveState("saved");
+    } catch (err) {
+      setError(err.message);
+      setSaveState("error");
+    }
   };
 
   return (
@@ -26,62 +105,63 @@ export default function Upload() {
           Upload Document
         </h1>
         <p className="mt-2 text-sm text-gray-500">
-          Simulate uploading a prescription or lab report to see the AI
-          extraction in action.
+          Upload a photo or PDF of a prescription or lab report — the AI
+          figures out which one it is.
         </p>
       </header>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-        <button
-          onClick={handleLoadPrescription}
-          disabled={loading}
-          className="flex flex-col items-center justify-center p-6 bg-white border-2 border-dashed border-gray-300 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all disabled:opacity-50"
-        >
-          <svg
-            className="w-8 h-8 text-blue-500 mb-2"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-            ></path>
-          </svg>
-          <span className="font-semibold text-gray-700">
-            Simulate Prescription
-          </span>
-        </button>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={ACCEPTED_TYPES.join(",")}
+        onChange={handleInputChange}
+        className="hidden"
+      />
 
-        <button
-          onClick={handleLoadLabReport}
-          disabled={loading}
-          className="flex flex-col items-center justify-center p-6 bg-white border-2 border-dashed border-gray-300 rounded-xl hover:border-green-500 hover:bg-green-50 transition-all disabled:opacity-50"
+      <div
+        onClick={() => fileInputRef.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragActive(true);
+        }}
+        onDragLeave={() => setDragActive(false)}
+        onDrop={handleDrop}
+        className={`flex flex-col items-center justify-center p-10 bg-white border-2 border-dashed rounded-xl cursor-pointer transition-all ${
+          dragActive
+            ? "border-blue-500 bg-blue-50"
+            : "border-gray-300 hover:border-blue-400 hover:bg-blue-50"
+        }`}
+      >
+        <svg
+          className="w-10 h-10 text-blue-500 mb-3"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
         >
-          <svg
-            className="w-8 h-8 text-green-500 mb-2"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"
-            ></path>
-          </svg>
-          <span className="font-semibold text-gray-700">
-            Simulate Lab Report
-          </span>
-        </button>
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+          ></path>
+        </svg>
+        <span className="font-semibold text-gray-700">
+          Click to browse or drag a file here
+        </span>
+        <span className="text-xs text-gray-400 mt-1">
+          JPEG, PNG, WEBP, HEIC, or PDF — up to ~18MB
+        </span>
       </div>
 
       {loading && (
         <div className="text-center text-gray-500 animate-pulse">
           Processing document...
+        </div>
+      )}
+
+      {error && (
+        <div className="p-4 bg-red-50 border-l-4 border-red-400 rounded-r-md text-sm text-red-700">
+          {error}
         </div>
       )}
 
@@ -106,6 +186,19 @@ export default function Upload() {
               Please confirm the extracted details below before proceeding.
             </p>
           </div>
+        </div>
+      )}
+
+      {normalized?.unresolved?.length > 0 && (
+        <div className="p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-md text-sm text-yellow-700">
+          <strong className="font-medium">Notice:</strong> some tests weren't
+          recognized and won't appear on the trend chart:
+          {normalized.unresolved.map((item, i) => (
+            <span key={i} className="font-medium">
+              {" "}
+              {item.rawTestName}
+            </span>
+          ))}
         </div>
       )}
 
@@ -202,7 +295,6 @@ export default function Upload() {
             </div>
           )}
 
-          {/* Lab Report Display */}
           {data.input_type === "lab_report" && data.lab_report && (
             <div className="p-6">
               <h3 className="text-lg font-bold text-gray-900 mb-4">
@@ -254,6 +346,35 @@ export default function Upload() {
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {data && (
+        <div className="flex items-center gap-4 flex-wrap">
+          <button
+            onClick={handleConfirmSave}
+            disabled={saveState === "saving" || saveState === "saved"}
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {saveState === "saving"
+              ? "Saving..."
+              : saveState === "saved"
+                ? "Saved ✓"
+                : "Confirm & Save"}
+          </button>
+
+          {saveState === "saved" && reminderSummary.length > 0 && (
+            <div className="text-sm text-gray-600 space-y-1">
+              {reminderSummary.map((r, i) => (
+                <div key={i}>
+                  <span className="font-medium text-gray-800">{r.drugName}:</span>{" "}
+                  {r.scheduled
+                    ? `reminders at ${r.created.map((c) => c.scheduledTime).join(", ")}`
+                    : r.reason}
+                </div>
+              ))}
             </div>
           )}
         </div>

@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { mockExtractLabReport } from "../services/api";
+import { useEffect, useState } from "react";
+import { getLabs, getOrCreatePatientId } from "../services/api";
 import {
   LineChart,
   Line,
@@ -12,15 +12,14 @@ import {
 
 export default function TrendChart() {
   const [chartData, setChartData] = useState([]);
-  const [unresolved, setUnresolved] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    mockExtractLabReport().then((res) => {
-      if (res.normalized) {
-        setChartData(res.normalized.series.hba1c || []);
-        setUnresolved(res.normalized.unresolved || []);
-      }
-    });
+    getOrCreatePatientId()
+      .then((patientId) => getLabs(patientId, "hba1c"))
+      .then((res) => setChartData(res.labMarkers || []))
+      .catch(() => setChartData([]))
+      .finally(() => setLoading(false));
   }, []);
 
   const renderCustomDot = (props) => {
@@ -59,32 +58,14 @@ export default function TrendChart() {
         Health Trends (HbA1c)
       </h2>
 
-      {unresolved.length > 0 && (
-        <div className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-md">
-          <div className="flex items-center">
-            <svg
-              className="h-5 w-5 text-yellow-400 mr-2"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
-              <path
-                fillRule="evenodd"
-                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <p className="text-sm text-yellow-700">
-              <strong className="font-medium">Notice:</strong> Unrecognized
-              tests found:
-              {unresolved.map((item, i) => (
-                <span key={i} className="font-medium">
-                  {" "}
-                  {item.rawTestName}
-                </span>
-              ))}
-            </p>
-          </div>
-        </div>
+      {loading && (
+        <p className="text-sm text-gray-500 mb-4">Loading...</p>
+      )}
+
+      {!loading && chartData.length === 0 && (
+        <p className="text-sm text-gray-500 mb-4">
+          No HbA1c readings yet — upload a lab report to see a trend here.
+        </p>
       )}
 
       <div className="w-full h-[300px]">

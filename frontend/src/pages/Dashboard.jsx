@@ -1,4 +1,3 @@
-import React from "react";
 import ReminderList from "../components/ReminderList";
 import TrendChart from "../components/TrendChart";
 
