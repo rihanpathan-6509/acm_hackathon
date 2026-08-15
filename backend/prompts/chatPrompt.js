@@ -1,4 +1,4 @@
-// utils/chatPromptTemplate.js
+// prompts/chatPrompt.js
 //
 // System prompt for the chat companion. Built from Step 3 research —
 // structured scope contract + explicit phrase blocklist + mandatory

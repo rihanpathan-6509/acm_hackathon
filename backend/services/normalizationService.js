@@ -129,7 +129,7 @@ function roundTo(value, decimals) {
 }
 
 /**
- * Normalize a single extracted LabTest (schemas/extractionSchema.js shape:
+ * Normalize a single extracted LabTest (utils/extractionSchema.js shape:
  * test_name, value, unit, reference_range, is_abnormal, ...) into a
  * canonical reading. Date/lab come from the parent LabReport, not the test
  * itself (extraction_schema.py keeps those at report level), so the caller

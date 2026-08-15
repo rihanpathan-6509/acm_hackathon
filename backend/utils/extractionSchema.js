@@ -1,4 +1,4 @@
-// schemas/extractionSchema.js
+// utils/extractionSchema.js
 //
 // JS/Zod port of extraction_schema.py — Rihan's Perplexity-researched
 // design, ported 1:1. Field names and structure must NOT drift from

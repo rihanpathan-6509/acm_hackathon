@@ -1,4 +1,4 @@
-// data/drugCatalog.js
+// utils/drugCatalog.js
 //
 // Flat list of common Indian generic drug names, referenced in the
 // extraction prompt so the model can cross-check a messy/handwritten read

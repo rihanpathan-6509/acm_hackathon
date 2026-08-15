@@ -1,24 +1,23 @@
 // services/chatService.js
 //
-// Chat companion logic. Builds the guardrailed system prompt (Step 3
-// research — see utils/chatPromptTemplate.js) with current patient
-// context, calls Gemini, and runs a post-hoc scan on the reply for
-// diagnostic-language leakage before returning it (research section 4's
-// "post-LLM output filter" — done here as a phrase-blocklist check rather
-// than a second LLM call, since a full retry loop wasn't in budget).
+// Chat companion logic. Builds the guardrailed system prompt
+// (prompts/chatPrompt.js) with current patient context, calls the shared
+// Gemini wrapper (geminiService.generateChatReply), and runs a post-hoc
+// scan on the reply for diagnostic-language leakage before returning it
+// (research section 4's "post-LLM output filter" — done here as a
+// phrase-blocklist check rather than a second LLM call).
 //
 // This module does NOT do emergency-keyword detection. That's backend's
-// deterministic system, and it runs BEFORE this module is ever called (see
-// chatPromptTemplate.js header). If you're tempted to add "if message
-// contains 'chest pain' ..." here, don't — confirm the boundary with
-// Sarhak & Sufiyaan instead (Sync 4 in the roadmap).
+// deterministic system (utils/emergencyKeywords.js + a pre-check that runs
+// BEFORE this module is ever called — see prompts/chatPrompt.js header). If
+// you're tempted to add "if message contains 'chest pain' ..." here, don't.
 
-const { getChatModel } = require("../config/gemini");
+const { generateChatReply } = require("./geminiService");
 const {
   buildChatSystemPrompt,
   turnAskedForDiagnosis,
   BANNED_PHRASES,
-} = require("../utils/chatPromptTemplate");
+} = require("../prompts/chatPrompt");
 
 const SAFE_FALLBACK_RESPONSE = {
   en: "I can't interpret that for you — only your doctor can. Please bring this up with them.",
@@ -48,18 +47,7 @@ async function getChatResponse(userMessage, patientContext = {}, history = []) {
     .some((turn) => turnAskedForDiagnosis(turn.text));
 
   const systemPrompt = buildChatSystemPrompt({ ...patientContext, priorTurnsAskedForDiagnosis });
-  const model = getChatModel();
-
-  const chat = model.startChat({
-    history: [
-      { role: "user", parts: [{ text: systemPrompt }] },
-      { role: "model", parts: [{ text: "Understood — I'll stay within those boundaries." }] },
-      ...history.map((turn) => ({ role: turn.role, parts: [{ text: turn.text }] })),
-    ],
-  });
-
-  const result = await chat.sendMessage(userMessage);
-  const reply = result.response.text();
+  const reply = await generateChatReply(systemPrompt, history, userMessage);
 
   if (containsBannedLanguage(reply)) {
     console.warn(

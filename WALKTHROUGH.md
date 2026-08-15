@@ -86,7 +86,7 @@ guess**. If a field is unclear, the model still gives its best-effort
 reading, but has to say so — via a confidence score and a flag — rather than
 silently presenting a shaky read as certain.
 
-### The schema (`schemas/extractionSchema.js`)
+### The schema (`backend/utils/extractionSchema.js`)
 
 A Zod port of your researched `extraction_schema.py`, field-for-field
 identical on purpose (so it can never quietly drift from what you actually
@@ -125,7 +125,7 @@ Three design choices worth understanding, not just knowing:
   the model doing clinical judgment, which is the one thing nothing in this
   product is allowed to do.
 
-### The prompt (`utils/promptTemplate.js`)
+### The prompt (`backend/prompts/extractionPrompt.js`)
 
 `buildExtractionSystemPrompt()` builds the actual instruction sent alongside
 every image, ported near-verbatim from your researched
@@ -134,7 +134,7 @@ every image, ported near-verbatim from your researched
 - **7 hard rules** (flag-don't-guess, transcribe exactly without normalizing
   drug/test names yet, don't infer missing fields, `is_abnormal` boundary
   above, no clinical commentary, cross-reference drug names against
-  `data/drugCatalog.js`, output *only* JSON).
+  `backend/utils/drugCatalog.js`, output *only* JSON).
 - **Concrete confidence bands**, not vague guidance: 0.9–1.0 = clean printed
   text, 0.7–0.89 = minor ambiguity, 0.4–0.69 = genuine best-guess off bad
   handwriting, below 0.4 = essentially unreadable but still emit a flagged
@@ -145,13 +145,15 @@ every image, ported near-verbatim from your researched
   flag it. That third example exists specifically to stop the model from
   "helpfully" doing the abnormality judgment itself.
 
-### The service (`services/geminiService.js`)
+### The service (`backend/services/extractionService.js`)
 
 `extractDocument(base64Image, mimeType)`:
 
 1. Builds the prompt, sends it + the image to Gemini (`gemini-1.5-pro`,
    temperature 0.1 — low on purpose, you want faithful reads, not creative
-   ones — see `config/gemini.js`).
+   ones — see `backend/config/gemini.js`). The raw Gemini call itself goes
+   through the shared `backend/services/geminiService.js` wrapper, used by
+   both extraction and chat.
 2. Parses the raw text as JSON (throws with the raw response attached if it
    isn't valid JSON — easier to debug than a silent failure).
 3. **Recomputes `requires_manual_review` itself**, server-side, using
@@ -208,7 +210,7 @@ for this build size: 90–95% accuracy, under 10ms per lookup, buildable in
 hours rather than days. LOINC and embeddings only pay off past ~50 markers or
 highly diverse naming — you have 7 markers for a fixed disease set.
 
-### The alias table (`utils/markerAliases.js`)
+### The alias table (`backend/utils/markerAliases.js`)
 
 7 markers, matched to the demo's disease scope (diabetes / hypertension /
 thyroid / CKD): **HbA1c, Serum Creatinine, Fasting Glucose, Hemoglobin, TSH,
@@ -235,7 +237,7 @@ There's also an `AMBIGUOUS_BARE_NAMES` list (`"glucose"`, `"blood sugar"`,
 their own (fasting glucose and random glucose are different things
 medically) and must never be silently resolved to one or the other.
 
-### The normalization algorithm (`services/normalizationService.js`)
+### The normalization algorithm (`backend/services/normalizationService.js`)
 
 For each raw `{test_name, value, unit}` coming out of extraction:
 
@@ -304,7 +306,7 @@ diagnose you" while still leaking a de facto diagnosis in the same breath
 distinction between a **strong refusal** and a **leaky refusal** is the core
 of what got built here.
 
-### The prompt (`utils/chatPromptTemplate.js`)
+### The prompt (`backend/prompts/chatPrompt.js`)
 
 `buildChatSystemPrompt({ patientMeds, trendFlags, language, priorTurnsAskedForDiagnosis })`
 assembles a prompt with four layers, straight from the research:
@@ -357,7 +359,7 @@ even if this specific message looks unrelated or purely educational.
 scope contract and banned-phrase rules in the base prompt apply to every
 single turn regardless of whether this flag fires.)*
 
-### The output filter (`services/chatService.js`)
+### The output filter (`backend/services/chatService.js`)
 
 After Gemini responds, `containsBannedLanguage()` scans the actual reply
 text for the same banned phrases from the prompt — a cheap, deterministic
@@ -388,23 +390,31 @@ fallback before the patient ever sees it.
 
 ```
 rihan-ai-ml/
-├── config/gemini.js              Gemini client — extraction model (vision, temp 0.1)
-│                                  + chat model (text, temp 0.4)
-├── data/drugCatalog.js           ~40 common Indian generic drug names (cross-reference list)
-├── schemas/extractionSchema.js   Zod port of extraction_schema.py — the shared contract
-├── utils/
-│   ├── promptTemplate.js         Extraction system prompt (Step 1)
-│   ├── markerAliases.js          Marker alias table + unit conversions (Step 2)
-│   └── chatPromptTemplate.js     Chat guardrail system prompt (Step 3)
-├── services/
-│   ├── geminiService.js          Calls Gemini for extraction, validates against schema
-│   ├── normalizationService.js   Alias resolution + unit conversion + confidence scoring
-│   └── chatService.js            Calls Gemini for chat, runs the output filter
-├── controllers/
-│   ├── extractController.js      POST /api/extract
-│   └── chatController.js         POST /api/chat
-├── routes/                       Express route wiring for the two controllers above
-└── index.js                      Standalone Express app (npm start) for testing solo
+├── backend/
+│   ├── server.js                     Main entrypoint — mounts all routes, requires MongoDB
+│   ├── config/
+│   │   ├── gemini.js                 Gemini client — extraction model (vision, temp 0.1)
+│   │   │                              + chat model (text, temp 0.4)
+│   │   └── mongodb.js                MongoDB connection
+│   ├── prompts/
+│   │   ├── extractionPrompt.js       Extraction system prompt (Step 1)
+│   │   └── chatPrompt.js             Chat guardrail system prompt (Step 3)
+│   ├── utils/
+│   │   ├── extractionSchema.js       Zod port of extraction_schema.py — the shared contract
+│   │   ├── drugCatalog.js            ~40 common Indian generic drug names (cross-reference list)
+│   │   ├── markerAliases.js          Marker alias table + unit conversions (Step 2)
+│   │   └── emergencyKeywords.js      DRAFT starter list for backend's emergency system
+│   ├── services/
+│   │   ├── geminiService.js          Shared low-level Gemini call wrapper
+│   │   ├── extractionService.js      Extraction orchestration, validates against schema
+│   │   ├── normalizationService.js   Alias resolution + unit conversion + confidence scoring
+│   │   └── chatService.js            Calls Gemini for chat, runs the output filter
+│   ├── controllers/
+│   │   ├── extractController.js      POST /api/extract
+│   │   └── chatController.js         POST /api/chat
+│   ├── routes/                       Express route wiring for the two controllers above
+│   └── models/                       DRAFT Mongoose schemas
+└── index.js                          Standalone Express app for testing extraction/chat without MongoDB
 ```
 
 ## 7. Decisions made along the way (and why)

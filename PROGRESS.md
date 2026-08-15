@@ -11,12 +11,12 @@ own Perplexity research, not invented — see `extraction_schema.py` /
 
 ## Step 1 — Extraction (prescriptions + lab reports): DONE, research-backed
 
-- `schemas/extractionSchema.js` — Zod schema, ported field-for-field from
+- `backend/utils/extractionSchema.js` — Zod schema, ported field-for-field from
   my researched `extraction_schema.py`.
-- `utils/promptTemplate.js` — the extraction system prompt, ported from my
+- `backend/prompts/extractionPrompt.js` — the extraction system prompt, ported from my
   researched `extraction_system_prompt.md` (flag-don't-guess rules,
   confidence bands, 3 worked examples).
-- `services/geminiService.js` — sends the image to Gemini, validates the
+- `backend/services/extractionService.js` — sends the image to Gemini, validates the
   response against the schema, recomputes `requires_manual_review` server-side.
 - Output shape: `{ input_type, prescription, lab_report, requires_manual_review }`.
   Every field carries its own `confidence` + `field_flags`; `is_abnormal` on
@@ -27,12 +27,12 @@ own Perplexity research, not invented — see `extraction_schema.py` /
 
 ## Step 2 — Marker normalization: DONE, research-backed
 
-- `utils/markerAliases.js` — static alias table, 7 markers covering the
+- `backend/utils/markerAliases.js` — static alias table, 7 markers covering the
   diabetes/hypertension/thyroid/CKD demo scope (HbA1c, Creatinine, Fasting
   Glucose, Hemoglobin, TSH, Potassium, LDL Cholesterol), with real
   unit-conversion formulas (e.g. HbA1c NGSP %  ↔ IFCC mmol/mol, creatinine
   mg/dL ↔ µmol/L).
-- `services/normalizationService.js` — exact alias match → Levenshtein
+- `backend/services/normalizationService.js` — exact alias match → Levenshtein
   fuzzy match (85% threshold, catches typos like "Creactinine") → refuses
   to resolve names that are clinically ambiguous on their own (e.g. bare
   "Glucose" with no fasting/random qualifier) rather than guessing.
@@ -51,7 +51,7 @@ own Perplexity research, not invented — see `extraction_schema.py` /
 
 ## Step 3 — Chat companion guardrails: DONE, research-backed
 
-- `utils/chatPromptTemplate.js` — system prompt built from Step 3 research:
+- `backend/prompts/chatPrompt.js` — system prompt built from Step 3 research:
   a scope contract (only 3 permitted actions: explain what the doctor
   already said, describe the patient's own data trend without interpreting
   it, or redirect to a doctor), an explicit banned-phrase list ("you may
@@ -64,7 +64,7 @@ own Perplexity research, not invented — see `extraction_schema.py` /
   you're my doctor", "list conditions that cause X", etc.); if an earlier
   turn probed for a diagnosis, later turns get a session note telling the
   model not to answer around it.
-- `services/chatService.js` — post-hoc output filter: scans the model's
+- `backend/services/chatService.js` — post-hoc output filter: scans the model's
   reply for the same banned phrases before returning it, and substitutes a
   safe fallback (in English or Hindi) if any slipped through.
 - Hindi guardrail: the prompt explicitly requires the Hindi refusal be as
@@ -89,15 +89,21 @@ own Perplexity research, not invented — see `extraction_schema.py` /
 
 | File | Status |
 |---|---|
-| `schemas/extractionSchema.js` | ✅ real, research-backed |
-| `utils/promptTemplate.js` | ✅ real, research-backed |
+| `backend/utils/extractionSchema.js` | ✅ real, research-backed |
+| `backend/prompts/extractionPrompt.js` | ✅ real, research-backed |
 | `services/geminiService.js` | ✅ real, wired to the above |
-| `data/drugCatalog.js` | ✅ real (flat list, not research-sensitive) |
-| `utils/markerAliases.js` | ✅ real, research-backed |
-| `services/normalizationService.js` | ✅ real, research-backed |
-| `utils/chatPromptTemplate.js` | ✅ real, research-backed |
-| `services/chatService.js` | ✅ real, wired to the above |
-| `controllers/`, `routes/`, `index.js`, `config/gemini.js` | ✅ plumbing, not research-dependent |
+| `backend/utils/drugCatalog.js` | ✅ real (flat list, not research-sensitive) |
+| `backend/services/geminiService.js` | ✅ real, shared Gemini call wrapper |
+| `backend/utils/emergencyKeywords.js` | ✅ draft, backend to review/own |
+| `backend/models/*.js` | ✅ draft Mongoose schemas, backend to review/own |
+| `backend/utils/markerAliases.js` | ✅ real, research-backed |
+| `backend/services/normalizationService.js` | ✅ real, research-backed |
+| `backend/prompts/chatPrompt.js` | ✅ real, research-backed |
+| `backend/services/chatService.js` | ✅ real, wired to the above |
+| `backend/controllers/`, `backend/routes/`, `index.js`, `backend/server.js`, `backend/config/gemini.js` | ✅ plumbing, not research-dependent |
+| `backend/middleware/upload.js`, `errorHandler.js` | ✅ generic boilerplate |
+| `backend/middleware/auth.js` | ⛔ stub — auth strategy not decided |
+| `backend/controllers/{medication,lab,reminder}Controller.js`, `backend/routes/{medication,lab,reminder}Routes.js`, `backend/services/reminderService.js` | ⛔ stubs — backend's business logic, not mine to invent |
 
 ## Not yet done / blockers
 
@@ -121,7 +127,7 @@ own Perplexity research, not invented — see `extraction_schema.py` /
   actual shape they'll pass in for patient meds + trend flags (the chat
   code currently assumes `{ patientMeds: [{drugName, dose, timing}],
   trendFlags: [{markerName, plainLanguageFlag}], language }` — see
-  `chatService.js`).
+  `backend/services/chatService.js`).
 - **Nikhil (chat UI):** input/output shape for `/api/chat` is stable —
   `{ message, patientContext, history }` in, `{ reply }` out — ready to
   build the chat UI against.

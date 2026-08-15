@@ -1,14 +1,14 @@
 // index.js
 //
-// Standalone entrypoint so this slice can be run and tested on its own
-// before it's wired into the team's main Express app. Sarhak & Sufiyaan
-// will likely mount extractRoutes/chatRoutes into the main app instead of
-// running this file directly — check with them before demo day.
+// Standalone entrypoint so extraction/chat can be run and tested without a
+// MongoDB connection — server.js (the real merged-app entrypoint, under
+// backend/) requires one to boot at all. Kept at root deliberately, outside
+// the backend/ tree, since it isn't part of the merged app's own structure.
 
 require("dotenv").config();
 const express = require("express");
-const extractRoutes = require("./routes/extractRoutes");
-const chatRoutes = require("./routes/chatRoutes");
+const extractRoutes = require("./backend/routes/extractRoutes");
+const chatRoutes = require("./backend/routes/chatRoutes");
 
 const app = express();
 app.use(express.json({ limit: "15mb" })); // base64 images need headroom

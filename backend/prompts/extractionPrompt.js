@@ -1,4 +1,4 @@
-// utils/promptTemplate.js
+// prompts/extractionPrompt.js
 //
 // Builds the extraction system prompt. Ported directly from
 // extraction_system_prompt.md — Rihan's Perplexity-researched design, kept
@@ -6,9 +6,9 @@
 // can't drift from the source doc. If the rules change, edit
 // extraction_system_prompt.md first and mirror the edit here.
 
-const drugCatalog = require("../data/drugCatalog");
+const drugCatalog = require("../utils/drugCatalog");
 
-// Textual description of the ExtractionResult shape (schemas/extractionSchema.js),
+// Textual description of the ExtractionResult shape (utils/extractionSchema.js),
 // stands in for {{JSON_SCHEMA}} from extraction_system_prompt.md.
 const JSON_SCHEMA_DESCRIPTION = `{
   "input_type": "prescription" | "lab_report",

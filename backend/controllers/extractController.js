@@ -5,7 +5,7 @@
 // for lab reports also runs normalization before responding, so the
 // frontend gets normalized marker data in one round trip.
 
-const { extractDocument } = require("../services/geminiService");
+const { extractDocument } = require("../services/extractionService");
 const { buildMarkerTimeSeries } = require("../services/normalizationService");
 
 async function handleExtract(req, res) {

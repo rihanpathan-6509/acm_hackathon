@@ -1,18 +1,20 @@
-// services/geminiService.js
+// services/extractionService.js
 //
-// Low-level Gemini call for extraction. Sends the image with the extraction
-// system prompt (utils/promptTemplate.js) and validates the response against
-// extractionSchema.js before returning it.
+// Extraction orchestration: builds the prompt (prompts/extractionPrompt.js),
+// calls the shared Gemini wrapper (geminiService.generateExtraction),
+// parses the JSON, recomputes requires_manual_review server-side, and
+// validates the result against the schema (utils/extractionSchema.js)
+// before returning it.
 //
 // Nothing here talks to Mongo or reminders/normalization — this module's
 // only job is: image in, validated schema out.
 
-const { getExtractionModel } = require("../config/gemini");
-const { buildExtractionSystemPrompt } = require("../utils/promptTemplate");
+const { generateExtraction } = require("./geminiService");
+const { buildExtractionSystemPrompt } = require("../prompts/extractionPrompt");
 const {
   ExtractionResult,
   computeRequiresManualReview,
-} = require("../schemas/extractionSchema");
+} = require("../utils/extractionSchema");
 
 /**
  * @param {string} base64Image  raw base64 (no data: prefix)
@@ -20,15 +22,8 @@ const {
  * @returns {Promise<import("zod").infer<typeof ExtractionResult>>}
  */
 async function extractDocument(base64Image, mimeType) {
-  const model = getExtractionModel();
   const prompt = buildExtractionSystemPrompt();
-
-  const result = await model.generateContent([
-    { text: prompt },
-    { inlineData: { data: base64Image, mimeType } },
-  ]);
-
-  const rawText = result.response.text();
+  const rawText = await generateExtraction(prompt, { data: base64Image, mimeType });
 
   let parsed;
   try {
