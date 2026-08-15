@@ -5,6 +5,7 @@ import {
   saveLabReadings,
   getOrCreatePatientId,
 } from "../services/api";
+import { getLabTestStatus, TONE_CLASSES } from "../utils/labStatus";
 
 const ACCEPTED_TYPES = [
   "image/jpeg", "image/jpg", "image/png", "image/webp",
@@ -331,15 +332,17 @@ export default function Upload() {
                           {test.reference_range}
                         </td>
                         <td className="px-4 py-3 text-sm">
-                          {test.is_abnormal ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                              Abnormal
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              Normal
-                            </span>
-                          )}
+                          {(() => {
+                            const status = getLabTestStatus(test);
+                            return (
+                              <span
+                                title={status.title}
+                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${TONE_CLASSES[status.tone]}`}
+                              >
+                                {status.label}
+                              </span>
+                            );
+                          })()}
                         </td>
                       </tr>
                     ))}
