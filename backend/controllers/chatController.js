@@ -30,7 +30,11 @@ async function handleChat(req, res, next) {
       resolvedHistory = recent.reverse().map((entry) => ({ role: entry.role, text: entry.text }));
     }
 
-    const reply = await getChatResponse(message, patientContext || {}, resolvedHistory || []);
+    const { reply, isEmergency } = await getChatResponse(
+      message,
+      patientContext || {},
+      resolvedHistory || []
+    );
 
     if (patientId) {
       const language = patientContext?.language === "hi" ? "hi" : "en";
@@ -40,7 +44,7 @@ async function handleChat(req, res, next) {
       ]);
     }
 
-    return res.json({ reply });
+    return res.json({ reply, isEmergency });
   } catch (err) {
     next(err);
   }

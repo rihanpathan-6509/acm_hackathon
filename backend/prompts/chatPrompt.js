@@ -6,17 +6,17 @@
 // Diagnosis Refusal with Triage Redirection" pattern (Inferensys) to this
 // app's context (patient meds + trend flags, Hindi/English).
 //
-// IMPORTANT BOUNDARY (unchanged from the roadmap): the rule-based emergency
-// flag (fixed keyword list -> deterministic "call emergency services now")
-// is backend's (Sarhak & Sufiyaan), not this prompt's, and their check runs
-// BEFORE this prompt is ever called (research section 4's recommended
-// order: pre-LLM keyword check first, bypass the LLM entirely on a match).
-// The EMERGENCY BOUNDARY clause below is a belt-and-suspenders fallback
-// only, for the rare case the deterministic pre-check misses something
-// mid-conversation — it does NOT attempt clinical triage, it just repeats
-// the same call-emergency-services instruction backend's system would give.
-// Confirm the exact wording/number with Sarhak & Sufiyaan (Sync 4) before
-// the demo so this fallback can't drift from their keyword list.
+// IMPORTANT BOUNDARY: the rule-based emergency flag (fixed keyword list ->
+// deterministic "call emergency services now") lives in
+// utils/emergencyKeywords.js and runs in services/chatService.js BEFORE this
+// prompt is ever built (research section 4's recommended order: pre-LLM
+// keyword check first, bypass the LLM entirely on a match — wired up
+// 2026-08-15). The EMERGENCY BOUNDARY clause below is a belt-and-suspenders
+// fallback only, for the rare case the deterministic pre-check misses
+// something mid-conversation — it does NOT attempt clinical triage, it just
+// repeats the same call-emergency-services instruction the pre-check gives.
+// Keep this prompt's number/wording in sync with chatService.js's
+// EMERGENCY_RESPONSE if either changes.
 
 // Phrases that leak a de facto diagnosis even inside a nominal "refusal" —
 // research section 2's distinction between a strong refusal and a leaky

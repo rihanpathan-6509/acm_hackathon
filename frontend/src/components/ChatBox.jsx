@@ -1,5 +1,9 @@
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { sendChatMessage, getOrCreatePatientId, getMedications, getLabs } from "../services/api";
+import Card from "./ui/Card";
+import Button from "./ui/Button";
+import EmptyState from "./ui/EmptyState";
 
 export default function ChatBox() {
   const [messages, setMessages] = useState([]);
@@ -52,7 +56,10 @@ export default function ChatBox() {
       };
 
       const res = await sendChatMessage(input, patientId, patientContext, messages);
-      setMessages([...currentHistory, { role: "model", text: res.reply }]);
+      setMessages([
+        ...currentHistory,
+        { role: "model", text: res.reply, isEmergency: res.isEmergency },
+      ]);
     } catch (err) {
       setMessages([
         ...currentHistory,
@@ -64,16 +71,11 @@ export default function ChatBox() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto h-[calc(100vh-12rem)] flex flex-col bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+    <Card className="max-w-2xl mx-auto h-[calc(100vh-12rem)] flex flex-col overflow-hidden">
+      <div className="px-6 py-4 border-b border-stone-100 bg-stone-50/60 flex justify-between items-center">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-            <svg
-              className="w-6 h-6 text-blue-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+          <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center">
+            <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -83,20 +85,20 @@ export default function ChatBox() {
             </svg>
           </div>
           <div>
-            <h2 className="font-bold text-gray-900">Health Assistant</h2>
-            <p className="text-xs text-green-600 flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-green-500 inline-block"></span>{" "}
+            <h2 className="font-semibold text-ink">Health Assistant</h2>
+            <p className="text-xs text-success-600 flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-success-500 inline-block"></span>{" "}
               Online
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-gray-600">Language:</label>
+          <label className="text-sm font-medium text-ink-soft">Language:</label>
           <select
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
-            className="text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+            className="text-sm border border-stone-200 rounded-lg px-2 py-1 bg-surface focus:outline-none focus:ring-2 focus:ring-primary-300"
           >
             <option value="en">English</option>
             <option value="hi">Hindi</option>
@@ -104,65 +106,59 @@ export default function ChatBox() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
+      <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-bg">
         {messages.length === 0 && (
-          <div className="h-full flex flex-col items-center justify-center text-center text-gray-500 space-y-3">
-            <svg
-              className="w-12 h-12 text-gray-300"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="1.5"
-                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-              ></path>
-            </svg>
-            <p>
-              I'm your AI health assistant.
-              <br />
-              Ask me about your uploaded reports or medications.
-            </p>
+          <div className="h-full flex items-center justify-center">
+            <EmptyState
+              icon={
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
+                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              }
+              title="I'm your AI health assistant."
+              description="Ask me about your uploaded reports or medications."
+            />
           </div>
         )}
 
         {messages.map((msg, index) => (
-          <div
+          <motion.div
             key={index}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
             className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
           >
             <div
               className={`max-w-[80%] rounded-2xl px-5 py-3 ${
                 msg.role === "user"
-                  ? "bg-blue-600 text-white rounded-br-none"
-                  : "bg-white text-gray-800 border border-gray-200 rounded-bl-none shadow-sm"
+                  ? "bg-primary-600 text-white rounded-br-md"
+                  : msg.isEmergency
+                  ? "bg-danger-50 text-danger-800 border-2 border-danger-400 rounded-bl-md shadow-soft"
+                  : "bg-surface text-ink border border-stone-200 rounded-bl-md shadow-soft"
               }`}
             >
+              {msg.isEmergency && (
+                <p className="font-semibold text-danger-700 mb-1">⚠ Possible emergency</p>
+              )}
               {msg.text}
             </div>
-          </div>
+          </motion.div>
         ))}
 
         {loading && (
           <div className="flex justify-start">
-            <div className="bg-white border border-gray-200 rounded-2xl rounded-bl-none px-5 py-4 shadow-sm flex items-center gap-2">
-              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-              <div
-                className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                style={{ animationDelay: "0.2s" }}
-              ></div>
-              <div
-                className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                style={{ animationDelay: "0.4s" }}
-              ></div>
+            <div className="bg-surface border border-stone-200 rounded-2xl rounded-bl-md px-5 py-4 shadow-soft flex items-center gap-2">
+              <div className="w-2 h-2 bg-stone-400 rounded-full animate-bounce"></div>
+              <div className="w-2 h-2 bg-stone-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+              <div className="w-2 h-2 bg-stone-400 rounded-full animate-bounce" style={{ animationDelay: "0.4s" }}></div>
             </div>
           </div>
         )}
       </div>
 
-      <div className="p-4 bg-white border-t border-gray-200">
+      <div className="p-4 bg-surface border-t border-stone-100">
         <div className="flex gap-2">
           <input
             type="text"
@@ -170,30 +166,13 @@ export default function ChatBox() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
             placeholder="Type your health question..."
-            className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="flex-1 border border-stone-200 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-transparent"
           />
-          <button
-            onClick={handleSend}
-            disabled={loading || !input.trim()}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            Send
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-              ></path>
-            </svg>
-          </button>
+          <Button onClick={handleSend} disabled={!input.trim()} loading={loading}>
+            {loading ? "Sending" : "Send"}
+          </Button>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }

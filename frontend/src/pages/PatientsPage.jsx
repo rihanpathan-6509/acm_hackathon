@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import {
   getPatients,
   createPatient,
@@ -6,10 +7,15 @@ import {
   setActivePatientId,
 } from "../services/api";
 import PatientTimeline from "../components/PatientTimeline";
+import Card from "../components/ui/Card";
+import Button from "../components/ui/Button";
+import EmptyState from "../components/ui/EmptyState";
+import { SkeletonRow } from "../components/ui/Skeleton";
+import { useToast } from "../components/ui/useToast";
 
 export default function PatientsPage() {
+  const toast = useToast();
   const [patients, setPatients] = useState(null);
-  const [error, setError] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
@@ -18,10 +24,13 @@ export default function PatientsPage() {
   const load = () => {
     getPatients()
       .then((res) => setPatients(res.patients || []))
-      .catch((err) => setError(err.message));
+      .catch((err) => {
+        setPatients([]);
+        toast(err.message);
+      });
   };
 
-  useEffect(load, []);
+  useEffect(load, [toast]);
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -32,7 +41,7 @@ export default function PatientsPage() {
       setNewName("");
       load();
     } catch (err) {
-      setError(err.message);
+      toast(err.message);
     } finally {
       setCreating(false);
     }
@@ -41,19 +50,13 @@ export default function PatientsPage() {
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <header>
-        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Patients</h1>
-        <p className="mt-2 text-sm text-gray-500">
+        <h1 className="text-3xl font-semibold text-ink tracking-tight">Patients</h1>
+        <p className="mt-1.5 text-sm text-ink-soft">
           Every patient's medications, lab readings, and reminders are kept
           separately — pick one to view their history, or switch the app to
           act on them.
         </p>
       </header>
-
-      {error && (
-        <div className="p-4 bg-red-50 border-l-4 border-red-400 rounded-r-md text-sm text-red-700">
-          {error}
-        </div>
-      )}
 
       <form onSubmit={handleCreate} className="flex gap-2">
         <input
@@ -61,74 +64,89 @@ export default function PatientsPage() {
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           placeholder="New patient name"
-          className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex-1 border border-stone-200 rounded-lg px-4 py-2 bg-surface focus:outline-none focus:ring-2 focus:ring-primary-300"
         />
-        <button
-          type="submit"
-          disabled={creating || !newName.trim()}
-          className="bg-blue-600 text-white px-5 py-2 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
-        >
+        <Button type="submit" loading={creating} disabled={!newName.trim()}>
           {creating ? "Adding..." : "Add Patient"}
-        </button>
+        </Button>
       </form>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 bg-white rounded-xl shadow-sm border border-gray-200 divide-y divide-gray-100">
-          {patients === null && <p className="p-4 text-sm text-gray-500">Loading...</p>}
-          {patients?.length === 0 && (
-            <p className="p-4 text-sm text-gray-500">No patients yet.</p>
+        <Card className="lg:col-span-1 divide-y divide-stone-100 overflow-hidden">
+          {patients === null && (
+            <div className="divide-y divide-stone-100">
+              <SkeletonRow />
+              <SkeletonRow />
+            </div>
           )}
-          {patients?.map((p) => {
+          {patients?.length === 0 && (
+            <EmptyState
+              icon={
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              }
+              title="No patients yet"
+              description="Add one above to get started."
+            />
+          )}
+          {patients?.map((p, i) => {
             const isActive = p._id === activeId;
             const isSelected = p._id === selectedId;
             return (
-              <div
+              <motion.div
                 key={p._id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25, delay: i * 0.05 }}
                 onClick={() => setSelectedId(p._id)}
-                className={`p-4 cursor-pointer transition-colors ${isSelected ? "bg-blue-50" : "hover:bg-gray-50"}`}
+                className={`p-4 cursor-pointer transition-colors ${isSelected ? "bg-primary-50" : "hover:bg-stone-50"}`}
               >
                 <div className="flex items-center justify-between gap-2">
                   <div>
-                    <p className="font-medium text-gray-900">
+                    <p className="font-medium text-ink">
                       {p.name}
                       {isActive && (
-                        <span className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-700">
+                        <span className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded-full bg-success-100 text-success-700">
                           Active
                         </span>
                       )}
                     </p>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-ink-soft/80">
                       Added {new Date(p.createdAt).toLocaleDateString()}
                     </p>
                   </div>
                   {!isActive && (
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
                         setActivePatientId(p._id);
                       }}
-                      className="text-xs font-medium text-blue-600 hover:text-blue-800 whitespace-nowrap"
+                      className="whitespace-nowrap"
                     >
                       Switch to
-                    </button>
+                    </Button>
                   )}
                 </div>
-              </div>
+              </motion.div>
             );
           })}
-        </div>
+        </Card>
 
-        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">History Timeline</h2>
+        <Card className="lg:col-span-2 p-6">
+          <h2 className="text-lg font-semibold text-ink mb-4">History Timeline</h2>
           {selectedId ? (
             // Keyed by patientId so switching patients remounts this
             // fresh (fixes clearing on switch) instead of resetting state
             // synchronously inside its effect.
             <PatientTimeline key={selectedId} patientId={selectedId} />
           ) : (
-            <p className="text-sm text-gray-500">Select a patient to view their history.</p>
+            <p className="text-sm text-ink-soft">Select a patient to view their history.</p>
           )}
-        </div>
+        </Card>
       </div>
     </div>
   );

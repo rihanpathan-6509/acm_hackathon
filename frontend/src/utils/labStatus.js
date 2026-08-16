@@ -70,8 +70,8 @@ export function getLabTestStatus(test) {
 }
 
 export const TONE_CLASSES = {
-  red: "bg-red-100 text-red-800",
-  amber: "bg-amber-100 text-amber-800",
-  green: "bg-green-100 text-green-800",
-  gray: "bg-gray-100 text-gray-600",
+  red: "bg-danger-100 text-danger-800",
+  amber: "bg-warning-100 text-warning-800",
+  green: "bg-success-100 text-success-800",
+  gray: "bg-stone-100 text-ink-soft",
 };

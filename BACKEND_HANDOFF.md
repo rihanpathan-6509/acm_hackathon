@@ -123,16 +123,15 @@ schedule yet — that parsing is your logic, not mine). `backend/services/remind
 and `backend/controllers/reminderController.js` are empty stubs waiting on this.
 
 ### c. Rule-based emergency-keyword system
-Deterministic, fixed keyword list → immediate "call emergency services now"
-response. **This needs to run before the chat companion is ever called** —
-my prompt (`backend/prompts/chatPrompt.js`) assumes this pre-check exists and
-explicitly does not attempt emergency detection itself. **A draft starter
-list exists** at `backend/utils/emergencyKeywords.js` (English + Hindi/Hinglish,
-with a `matchesEmergencyKeyword()` function) — please review, adjust, and
-take ownership of it rather than treating it as final; it's pulled from
-Step 3 research, not clinically validated. See the open question below —
-I need your actual final list so my prompt's fallback clause doesn't drift
-from it.
+**Update 2026-08-15: wired up as a stopgap.** `backend/services/chatService.js`
+now calls `matchesEmergencyKeyword()` on every message before the LLM is
+invoked and bypasses Gemini entirely on a match (`prompts/chatPrompt.js`'s
+EMERGENCY BOUNDARY clause is now genuinely a fallback, not the only line of
+defense). The keyword list at `backend/utils/emergencyKeywords.js` is still
+the Step 3 research draft, not clinically validated — please review, adjust,
+and take ownership of the actual list content; the mechanism calling it is
+done, but the list itself still needs your sign-off before the demo. See the
+open question below.
 
 ### d. Expose patient meds + trend flags to the chat companion
 `backend/services/chatService.js` currently assumes this shape for `patientContext`,

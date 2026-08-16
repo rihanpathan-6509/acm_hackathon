@@ -9,6 +9,30 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { SkeletonChart } from "./ui/Skeleton";
+import EmptyState from "./ui/EmptyState";
+
+function formatDate(value) {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleDateString(undefined, { month: "short", year: "numeric" });
+}
+
+function ChartTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
+  const point = payload[0].payload;
+  return (
+    <div className="rounded-xl bg-ink text-white text-xs px-3 py-2 shadow-lifted">
+      <p className="text-white/60 mb-0.5">{formatDate(label)}</p>
+      <p className="font-semibold">
+        {point.canonicalName || "Value"}: {point.displayValue} {point.displayUnit}
+      </p>
+      {(point.isAbnormal || point.needsReview) && (
+        <p className="text-danger-300 mt-0.5">Flagged on report</p>
+      )}
+    </div>
+  );
+}
 
 export default function TrendChart() {
   const [labMarkers, setLabMarkers] = useState([]);
@@ -48,42 +72,23 @@ export default function TrendChart() {
   const chartData = activeMarker ? byMarker[activeMarker] : [];
   const markerLabel = chartData[0]?.canonicalName || activeMarker || "";
 
-  // Mongo serializes `date` as a full ISO timestamp
-  // ("2026-08-01T00:00:00.000Z"), unlike the plain "2026-08-01" the old
-  // mock returned — without this the axis renders unreadable raw strings.
-  const formatDate = (value) => {
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return value;
-    return d.toLocaleDateString(undefined, { month: "short", year: "numeric" });
-  };
-
   const renderCustomDot = (props) => {
     const { cx, cy, payload } = props;
     if (payload.isAbnormal || payload.needsReview) {
       return (
-        <circle
-          cx={cx}
-          cy={cy}
-          r={6}
-          fill="#ef4444"
-          stroke="white"
-          strokeWidth={2}
-        />
+        <circle cx={cx} cy={cy} r={6} fill="var(--color-danger-500)" stroke="white" strokeWidth={2} />
       );
     }
-    return <circle cx={cx} cy={cy} r={4} fill="#3b82f6" />;
+    return <circle cx={cx} cy={cy} r={4} fill="var(--color-primary-500)" />;
   };
+
+  if (loading) return <SkeletonChart />;
 
   return (
     <div className="p-6">
       <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
-        <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-          <svg
-            className="w-5 h-5 text-blue-500"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
+        <h2 className="text-lg font-semibold text-ink flex items-center gap-2">
+          <svg className="w-5 h-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -98,7 +103,7 @@ export default function TrendChart() {
           <select
             value={activeMarker}
             onChange={(e) => setSelectedMarker(e.target.value)}
-            className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="text-sm border border-stone-200 rounded-lg px-2.5 py-1.5 bg-surface focus:outline-none focus:ring-2 focus:ring-primary-300"
           >
             {markerKeys.map((key) => (
               <option key={key} value={key}>
@@ -109,67 +114,52 @@ export default function TrendChart() {
         )}
       </div>
 
-      {loading && <p className="text-sm text-gray-500 mb-4">Loading...</p>}
-
-      {!loading && chartData.length === 0 && (
-        <p className="text-sm text-gray-500 mb-4">
-          No lab readings yet — upload a lab report to see a trend here.
-        </p>
+      {chartData.length === 0 && (
+        <EmptyState
+          icon={
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
+                d="M7 12l3-3 3 3 4-4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+            </svg>
+          }
+          title="No lab readings yet"
+          description="Upload a lab report to see a trend here."
+        />
       )}
 
-      {!loading && chartData.length === 1 && (
-        <p className="text-sm text-gray-500 mb-4">
+      {chartData.length === 1 && (
+        <p className="text-sm text-ink-soft mb-4">
           Only one reading so far — upload another report to see a trend line.
         </p>
       )}
 
-      <div className="w-full h-[300px]">
-        <ResponsiveContainer>
-          <LineChart
-            data={chartData}
-            margin={{ top: 10, right: 10, bottom: 0, left: -20 }}
-          >
-            <CartesianGrid
-              strokeDasharray="3 3"
-              vertical={false}
-              stroke="#e5e7eb"
-            />
-            <XAxis
-              dataKey="date"
-              tickFormatter={formatDate}
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: "#6b7280", fontSize: 12 }}
-              dy={10}
-            />
-            <YAxis
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: "#6b7280", fontSize: 12 }}
-            />
-            <Tooltip
-              contentStyle={{
-                borderRadius: "8px",
-                border: "none",
-                boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-              }}
-              labelFormatter={formatDate}
-              formatter={(value, name, props) => [
-                `${value} ${props.payload.displayUnit}`,
-                props.payload.canonicalName || "Value",
-              ]}
-            />
-            <Line
-              type="monotone"
-              dataKey="displayValue"
-              stroke="#3b82f6"
-              strokeWidth={3}
-              dot={renderCustomDot}
-              activeDot={{ r: 8, strokeWidth: 0 }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+      {chartData.length > 0 && (
+        <div className="w-full h-[300px]">
+          <ResponsiveContainer>
+            <LineChart data={chartData} margin={{ top: 10, right: 10, bottom: 0, left: -20 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e7e4e1" />
+              <XAxis
+                dataKey="date"
+                tickFormatter={formatDate}
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: "#78716c", fontSize: 12 }}
+                dy={10}
+              />
+              <YAxis axisLine={false} tickLine={false} tick={{ fill: "#78716c", fontSize: 12 }} />
+              <Tooltip content={<ChartTooltip />} />
+              <Line
+                type="monotone"
+                dataKey="displayValue"
+                stroke="var(--color-primary-500)"
+                strokeWidth={3}
+                dot={renderCustomDot}
+                activeDot={{ r: 8, strokeWidth: 0, fill: "var(--color-primary-600)" }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </div>
   );
 }

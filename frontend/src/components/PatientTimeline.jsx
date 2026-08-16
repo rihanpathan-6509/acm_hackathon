@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import { getMedications, getLabs, getReminders } from "../services/api";
+import { SkeletonRow } from "./ui/Skeleton";
+import EmptyState from "./ui/EmptyState";
+import { useToast } from "./ui/useToast";
 
 // Merges three separate collections (medications, lab readings, reminders)
 // into one chronological feed. They have no shared "event" model on the
@@ -51,14 +55,14 @@ function buildTimeline({ medications, labMarkers, reminders }) {
 }
 
 const TYPE_STYLES = {
-  medication: { dot: "bg-blue-500", label: "Medication" },
-  lab: { dot: "bg-purple-500", label: "Lab Reading" },
-  reminder: { dot: "bg-amber-500", label: "Reminder" },
+  medication: { dot: "bg-primary-500", label: "Medication" },
+  lab: { dot: "bg-violet-400", label: "Lab Reading" },
+  reminder: { dot: "bg-accent-500", label: "Reminder" },
 };
 
 export default function PatientTimeline({ patientId }) {
+  const toast = useToast();
   const [events, setEvents] = useState(null); // null = loading
-  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (!patientId) return;
@@ -77,51 +81,77 @@ export default function PatientTimeline({ patientId }) {
           })
         );
       })
-      .catch((err) => setError(err.message));
-  }, [patientId]);
+      .catch((err) => {
+        setEvents([]);
+        toast(err.message);
+      });
+  }, [patientId, toast]);
 
-  if (error) {
-    return <p className="text-sm text-red-600">{error}</p>;
-  }
   if (events === null) {
-    return <p className="text-sm text-gray-500">Loading history...</p>;
+    return (
+      <div className="space-y-1">
+        <SkeletonRow />
+        <SkeletonRow />
+        <SkeletonRow />
+      </div>
+    );
   }
   if (events.length === 0) {
-    return <p className="text-sm text-gray-500">No history yet for this patient.</p>;
+    return (
+      <EmptyState
+        icon={
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
+              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        }
+        title="No history yet"
+        description="This patient's medications, labs, and reminders will show up here."
+      />
+    );
   }
 
   return (
-    <div className="space-y-4">
+    <motion.div
+      initial="hidden"
+      animate="show"
+      variants={{ show: { transition: { staggerChildren: 0.05 } } }}
+      className="space-y-4"
+    >
       {events.map((event) => {
         const style = TYPE_STYLES[event.type];
         return (
-          <div key={event.id} className="flex gap-3">
+          <motion.div
+            key={event.id}
+            variants={{ hidden: { opacity: 0, x: -8 }, show: { opacity: 1, x: 0 } }}
+            className="flex gap-3"
+          >
             <div className="flex flex-col items-center pt-1">
               <span className={`w-2.5 h-2.5 rounded-full ${style.dot}`} />
-              <span className="flex-1 w-px bg-gray-200 mt-1" />
+              <span className="flex-1 w-px bg-stone-200 mt-1" />
             </div>
             <div className="pb-4 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+                <span className="text-xs font-medium text-ink-soft uppercase tracking-wide">
                   {style.label}
                 </span>
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-ink-soft/80">
                   {new Date(event.date).toLocaleDateString(undefined, {
                     day: "numeric", month: "short", year: "numeric",
                   })}
                 </span>
                 {event.flagged && (
-                  <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-red-100 text-red-700">
+                  <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-danger-100 text-danger-700">
                     Flagged
                   </span>
                 )}
               </div>
-              <p className="font-medium text-gray-900 mt-0.5">{event.title}</p>
-              {event.detail && <p className="text-sm text-gray-500">{event.detail}</p>}
+              <p className="font-medium text-ink mt-0.5">{event.title}</p>
+              {event.detail && <p className="text-sm text-ink-soft">{event.detail}</p>}
             </div>
-          </div>
+          </motion.div>
         );
       })}
-    </div>
+    </motion.div>
   );
 }

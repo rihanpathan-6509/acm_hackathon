@@ -1,13 +1,11 @@
 // utils/emergencyKeywords.js
 //
-// DRAFT starter list for backend's rule-based emergency-detection system —
-// proposed by Rihan (AI/ML), NOT owned or finalized here. This deterministic
-// check is backend's system (Sarhak & Sufiyaan); the chat companion's
-// EMERGENCY BOUNDARY clause (prompts/chatPrompt.js) assumes this runs
-// BEFORE it's ever called, and explicitly does not attempt its own
-// detection. Please review, adjust, and take ownership of this list rather
-// than treating it as final — it's a starting point drawn from Step 3
-// research, not a clinically validated set.
+// Rule-based emergency-detection keyword list, called from
+// services/chatService.js's getChatResponse BEFORE the LLM is ever invoked
+// (wired up 2026-08-15 — previously this list existed but nothing called
+// it). Still a starting point drawn from Step 3 research, not a clinically
+// validated set — review with Sarhak & Sufiyaan before the demo and adjust
+// as needed; it isn't finalized just because it's now wired in.
 //
 // Bilingual coverage matters here: the research flagged that Hindi/Hinglish
 // code-mixing can bypass an English-only keyword list, so each category

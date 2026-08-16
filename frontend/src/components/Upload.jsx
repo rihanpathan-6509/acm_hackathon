@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { motion } from "framer-motion";
 import {
   extractDocument,
   saveMedication,
@@ -6,6 +7,9 @@ import {
   getOrCreatePatientId,
 } from "../services/api";
 import { getLabTestStatus, TONE_CLASSES } from "../utils/labStatus";
+import Button from "./ui/Button";
+import Card from "./ui/Card";
+import { useToast } from "./ui/useToast";
 
 const ACCEPTED_TYPES = [
   "image/jpeg", "image/jpg", "image/png", "image/webp",
@@ -49,7 +53,17 @@ function parseReminderTimesInput(value) {
     .filter((t) => TIME_TOKEN.test(t));
 }
 
+const listContainer = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.06 } },
+};
+const listItem = {
+  hidden: { opacity: 0, y: 10 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.25 } },
+};
+
 export default function Upload() {
+  const toast = useToast();
   const [patientId, setPatientId] = useState(null);
   const [data, setData] = useState(null);
   const [normalized, setNormalized] = useState(null);
@@ -128,7 +142,7 @@ export default function Upload() {
       }
       setSaveState("saved");
     } catch (err) {
-      setError(err.message);
+      toast(err.message);
       setSaveState("error");
     }
   };
@@ -136,10 +150,10 @@ export default function Upload() {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <header className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
+        <h1 className="text-3xl font-semibold text-ink tracking-tight">
           Upload Document
         </h1>
-        <p className="mt-2 text-sm text-gray-500">
+        <p className="mt-1.5 text-sm text-ink-soft">
           Upload a photo or PDF of a prescription or lab report — the AI
           figures out which one it is.
         </p>
@@ -153,7 +167,7 @@ export default function Upload() {
         className="hidden"
       />
 
-      <div
+      <motion.div
         onClick={() => fileInputRef.current?.click()}
         onDragOver={(e) => {
           e.preventDefault();
@@ -161,18 +175,15 @@ export default function Upload() {
         }}
         onDragLeave={() => setDragActive(false)}
         onDrop={handleDrop}
-        className={`flex flex-col items-center justify-center p-10 bg-white border-2 border-dashed rounded-xl cursor-pointer transition-all ${
+        animate={{ scale: dragActive ? 1.015 : 1 }}
+        transition={{ type: "spring", stiffness: 400, damping: 28 }}
+        className={`flex flex-col items-center justify-center p-10 bg-surface border-2 border-dashed rounded-2xl cursor-pointer transition-colors ${
           dragActive
-            ? "border-blue-500 bg-blue-50"
-            : "border-gray-300 hover:border-blue-400 hover:bg-blue-50"
+            ? "border-primary-400 bg-primary-50"
+            : "border-stone-300 hover:border-primary-300 hover:bg-primary-50/40"
         }`}
       >
-        <svg
-          className="w-10 h-10 text-blue-500 mb-3"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+        <svg className="w-10 h-10 text-primary-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -180,33 +191,37 @@ export default function Upload() {
             d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
           ></path>
         </svg>
-        <span className="font-semibold text-gray-700">
+        <span className="font-semibold text-ink">
           Click to browse or drag a file here
         </span>
-        <span className="text-xs text-gray-400 mt-1">
+        <span className="text-xs text-ink-soft mt-1">
           JPEG, PNG, WEBP, HEIC, or PDF — up to ~18MB
         </span>
-      </div>
+      </motion.div>
 
       {loading && (
-        <div className="text-center text-gray-500 animate-pulse">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex items-center justify-center gap-2.5 text-sm text-ink-soft py-2"
+        >
+          <svg className="animate-spin w-4 h-4 text-primary-500" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" className="opacity-20" />
+            <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+          </svg>
           Processing document...
-        </div>
+        </motion.div>
       )}
 
       {error && (
-        <div className="p-4 bg-red-50 border-l-4 border-red-400 rounded-r-md text-sm text-red-700">
+        <div className="p-4 bg-danger-50 border border-danger-200 rounded-xl text-sm text-danger-800">
           {error}
         </div>
       )}
 
       {data?.requires_manual_review && (
-        <div className="p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-md flex items-start">
-          <svg
-            className="h-5 w-5 text-yellow-400 mt-0.5 mr-3"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
+        <div className="p-4 bg-warning-50 border border-warning-200 rounded-xl flex items-start gap-3">
+          <svg className="h-5 w-5 text-warning-500 mt-0.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
             <path
               fillRule="evenodd"
               d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
@@ -214,10 +229,10 @@ export default function Upload() {
             />
           </svg>
           <div>
-            <h3 className="text-sm font-medium text-yellow-800">
+            <h3 className="text-sm font-semibold text-warning-800">
               Attention Required
             </h3>
-            <p className="text-sm text-yellow-700 mt-1">
+            <p className="text-sm text-warning-700 mt-0.5">
               Please confirm the extracted details below before proceeding.
             </p>
           </div>
@@ -225,7 +240,7 @@ export default function Upload() {
       )}
 
       {normalized?.unresolved?.length > 0 && (
-        <div className="p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-md text-sm text-yellow-700">
+        <div className="p-4 bg-warning-50 border border-warning-200 rounded-xl text-sm text-warning-700">
           <strong className="font-medium">Notice:</strong> some tests weren't
           recognized and won't appear on the trend chart:
           {normalized.unresolved.map((item, i) => (
@@ -238,94 +253,95 @@ export default function Upload() {
       )}
 
       {data && (
-        <div className="bg-white shadow-sm border border-gray-200 rounded-xl overflow-hidden">
+        <Card className="overflow-hidden">
           {data.input_type === "prescription" && data.prescription && (
             <div className="p-6">
-              <div className="border-b border-gray-100 pb-4 mb-4 flex justify-between items-end">
+              <div className="border-b border-stone-100 pb-4 mb-4 flex justify-between items-end">
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900">
+                  <h3 className="text-lg font-semibold text-ink">
                     Prescription Summary
                   </h3>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-ink-soft mt-1">
                     Patient: {data.prescription.patient_name}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-medium text-gray-700">
+                  <p className="text-sm font-medium text-ink">
                     {data.prescription.doctor_name}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-ink-soft">
                     {data.prescription.clinic_name}
                   </p>
                 </div>
               </div>
 
-              <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3">
+              <h4 className="text-sm font-semibold text-ink-soft uppercase tracking-wider mb-3">
                 Extracted Medications
               </h4>
-              <div className="space-y-3">
+              <motion.div variants={listContainer} initial="hidden" animate="show" className="space-y-3">
                 {data.prescription.medications.map((med, index) => {
                   const isLowConfidence = med.confidence < 0.7;
                   const flags = med.field_flags || [];
 
                   return (
-                    <div
+                    <motion.div
                       key={index}
-                      className={`p-4 rounded-lg border ${isLowConfidence ? "bg-red-50 border-red-200" : "bg-gray-50 border-gray-200"}`}
+                      variants={listItem}
+                      className={`p-4 rounded-xl border ${isLowConfidence ? "bg-danger-50 border-danger-200" : "bg-stone-50 border-stone-200"}`}
                     >
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                         <div>
-                          <span className="block text-xs text-gray-500 mb-1">
+                          <span className="block text-xs text-ink-soft mb-1">
                             Drug Name
                           </span>
                           <span
-                            className={`font-medium ${flags.includes("drug_name") ? "text-red-600 bg-red-100 px-1 py-0.5 rounded" : "text-gray-900"}`}
+                            className={`font-medium ${flags.includes("drug_name") ? "text-danger-700 bg-danger-100 px-1 py-0.5 rounded" : "text-ink"}`}
                           >
                             {med.drug_name}
                           </span>
                         </div>
                         <div>
-                          <span className="block text-xs text-gray-500 mb-1">
+                          <span className="block text-xs text-ink-soft mb-1">
                             Dose
                           </span>
                           <span
                             className={
                               flags.includes("dose")
-                                ? "text-red-600 bg-red-100 px-1 py-0.5 rounded"
-                                : "text-gray-900"
+                                ? "text-danger-700 bg-danger-100 px-1 py-0.5 rounded"
+                                : "text-ink"
                             }
                           >
                             {med.dose || "Not stated"}
                           </span>
                         </div>
                         <div>
-                          <span className="block text-xs text-gray-500 mb-1">
+                          <span className="block text-xs text-ink-soft mb-1">
                             Timing
                           </span>
                           <span
                             className={
                               flags.includes("timing")
-                                ? "text-red-600 bg-red-100 px-1 py-0.5 rounded"
-                                : "text-gray-900"
+                                ? "text-danger-700 bg-danger-100 px-1 py-0.5 rounded"
+                                : "text-ink"
                             }
                           >
                             {med.timing}
                           </span>
                         </div>
                         <div>
-                          <span className="block text-xs text-gray-500 mb-1">
+                          <span className="block text-xs text-ink-soft mb-1">
                             Confidence
                           </span>
                           <span
-                            className={`${isLowConfidence ? "text-red-600 font-bold" : "text-green-600 font-medium"}`}
+                            className={`${isLowConfidence ? "text-danger-600 font-bold" : "text-success-600 font-medium"}`}
                           >
                             {(med.confidence * 100).toFixed(0)}%
                           </span>
                         </div>
                       </div>
 
-                      <div className="mt-3 pt-3 border-t border-gray-200/70">
-                        <label className="block text-xs text-gray-500 mb-1">
+                      <div className="mt-3 pt-3 border-t border-stone-200/70">
+                        <label className="block text-xs text-ink-soft mb-1">
                           Reminder times (24h, comma-separated — leave blank to use the default for "{med.timing}")
                         </label>
                         <input
@@ -335,49 +351,49 @@ export default function Upload() {
                             setReminderTimeInputs((prev) => ({ ...prev, [index]: e.target.value }))
                           }
                           placeholder="e.g. 08:00, 20:00"
-                          className="w-full text-sm border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full text-sm border border-stone-200 rounded-lg px-3 py-1.5 bg-surface focus:outline-none focus:ring-2 focus:ring-primary-300"
                         />
                       </div>
-                    </div>
+                    </motion.div>
                   );
                 })}
-              </div>
+              </motion.div>
             </div>
           )}
 
           {data.input_type === "lab_report" && data.lab_report && (
             <div className="p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">
+              <h3 className="text-lg font-semibold text-ink mb-4">
                 Lab Report Summary
               </h3>
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full divide-y divide-stone-200">
+                  <thead className="bg-stone-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-4 py-3 text-left text-xs font-medium text-ink-soft uppercase tracking-wider">
                         Test Name
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-4 py-3 text-left text-xs font-medium text-ink-soft uppercase tracking-wider">
                         Result
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-4 py-3 text-left text-xs font-medium text-ink-soft uppercase tracking-wider">
                         Reference Range
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-4 py-3 text-left text-xs font-medium text-ink-soft uppercase tracking-wider">
                         Status
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-surface divide-y divide-stone-100">
                     {data.lab_report.tests.map((test, index) => (
                       <tr key={index}>
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                        <td className="px-4 py-3 text-sm font-medium text-ink">
                           {test.test_name}
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-700">
+                        <td className="px-4 py-3 text-sm text-ink">
                           {test.value} {test.unit}
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-500">
+                        <td className="px-4 py-3 text-sm text-ink-soft">
                           {test.reference_range}
                         </td>
                         <td className="px-4 py-3 text-sm">
@@ -400,34 +416,61 @@ export default function Upload() {
               </div>
             </div>
           )}
-        </div>
+        </Card>
       )}
 
       {data && (
         <div className="flex items-center gap-4 flex-wrap">
-          <button
+          <Button
+            variant="accent"
             onClick={handleConfirmSave}
             disabled={saveState === "saving" || saveState === "saved"}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            loading={saveState === "saving"}
           >
-            {saveState === "saving"
-              ? "Saving..."
-              : saveState === "saved"
-                ? "Saved ✓"
-                : "Confirm & Save"}
-          </button>
+            {saveState === "saving" ? (
+              "Saving..."
+            ) : saveState === "saved" ? (
+              <motion.span
+                initial={{ opacity: 0, scale: 0.7 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: "spring", stiffness: 400, damping: 18 }}
+                className="flex items-center gap-1.5"
+              >
+                <svg viewBox="0 0 24 24" className="w-4 h-4">
+                  <motion.path
+                    d="M4 12l5 5L20 6"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={3}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    initial={{ pathLength: 0 }}
+                    animate={{ pathLength: 1 }}
+                    transition={{ duration: 0.35, ease: "easeOut" }}
+                  />
+                </svg>
+                Saved
+              </motion.span>
+            ) : (
+              "Confirm & Save"
+            )}
+          </Button>
 
           {saveState === "saved" && reminderSummary.length > 0 && (
-            <div className="text-sm text-gray-600 space-y-1">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-sm text-ink-soft space-y-1"
+            >
               {reminderSummary.map((r, i) => (
                 <div key={i}>
-                  <span className="font-medium text-gray-800">{r.drugName}:</span>{" "}
+                  <span className="font-medium text-ink">{r.drugName}:</span>{" "}
                   {r.scheduled
                     ? `reminders at ${r.created.map((c) => c.scheduledTime).join(", ")}${r.personalized ? " (your times)" : ""}`
                     : r.reason}
                 </div>
               ))}
-            </div>
+            </motion.div>
           )}
         </div>
       )}
