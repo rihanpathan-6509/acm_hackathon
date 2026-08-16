@@ -1,1 +1,110 @@
 @import "tailwindcss";
+
+/*
+ * Design tokens for ChronicCare AI, Tailwind v4 CSS-first config.
+ * tailwind.config.js is intentionally gone — v4's PostCSS plugin only reads
+ * a JS config if a CSS file explicitly does `@config "path";`, which this
+ * project never did, so the old config.extend was silently inert. Tokens
+ * defined below as CSS custom properties inside @theme are what actually
+ * generate utility classes (bg-primary-500, text-ink, shadow-soft, ...).
+ */
+@theme {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  /* Display: same family, but we lean on heavy weight + tight tracking in the
+     component layer to get Chronicle's big, confident headline feel. */
+  --font-display: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+
+  /* Primary: vivid, clean teal-emerald — Chronicle's single confident accent.
+     Used for links, active nav, highlights and celebratory pops. Primary CTAs
+     are near-black "ink" (see Button.jsx), which is Chronicle's signature. */
+  --color-primary-50: #ecfdf7;
+  --color-primary-100: #d0faec;
+  --color-primary-200: #a3f3da;
+  --color-primary-300: #66e6c5;
+  --color-primary-400: #2fd0ac;
+  --color-primary-500: #12b592;
+  --color-primary-600: #059478;
+  --color-primary-700: #067663;
+  --color-primary-800: #095e50;
+  --color-primary-900: #0b4d42;
+  --color-primary-950: #032c26;
+
+  /* Accent: warm terracotta. Positive/celebratory moments — reminder taken,
+     save confirmed, streaks — so those moments feel warm, not clinical. */
+  --color-accent-50: #fef6f0;
+  --color-accent-100: #fce8d8;
+  --color-accent-200: #f8ceac;
+  --color-accent-300: #f2ab74;
+  --color-accent-400: #ea8747;
+  --color-accent-500: #dc6b2b;
+  --color-accent-600: #bd5420;
+  --color-accent-700: #97421c;
+  --color-accent-800: #78371c;
+  --color-accent-900: #622f19;
+
+  /* Success: muted sage green. Factual "in range / normal" states. */
+  --color-success-50: #f3f9f4;
+  --color-success-100: #e1efe3;
+  --color-success-200: #c3dfc8;
+  --color-success-300: #9cc8a4;
+  --color-success-400: #71ac7d;
+  --color-success-500: #4f8f5c;
+  --color-success-600: #3d7248;
+  --color-success-700: #335c3c;
+  --color-success-800: #2c4a32;
+  --color-success-900: #263e2b;
+
+  /* Warning: restrained amber. */
+  --color-warning-50: #fefaf0;
+  --color-warning-100: #fcf0d3;
+  --color-warning-200: #f8dfa0;
+  --color-warning-300: #f0c66a;
+  --color-warning-400: #e3ab3f;
+  --color-warning-500: #cc8f27;
+  --color-warning-600: #a8711e;
+  --color-warning-700: #85571c;
+  --color-warning-800: #6b451c;
+  --color-warning-900: #593a1b;
+
+  /* Danger: restrained brick red, not alarm-siren red. */
+  --color-danger-50: #fdf3f2;
+  --color-danger-100: #fbe2df;
+  --color-danger-200: #f6c6c0;
+  --color-danger-300: #eea299;
+  --color-danger-400: #e17567;
+  --color-danger-500: #cc5142;
+  --color-danger-600: #ac3c2f;
+  --color-danger-700: #8a3128;
+  --color-danger-800: #6f2b25;
+  --color-danger-900: #5c2722;
+
+  /* Neutrals: crisp, cool near-white canvas with near-black ink — Chronicle's
+     high-contrast, gallery-clean palette. Surfaces are pure white and lift off
+     the faintly-tinted page with a hairline border + soft diffuse shadow. */
+  --color-bg: #f6f8f8;
+  --color-surface: #ffffff;
+  --color-ink: #0a1210;
+  --color-ink-soft: #5d6b68;
+  --color-border: #e7ecea;
+
+  --shadow-soft: 0 1px 2px 0 rgba(10, 18, 16, 0.04), 0 1px 3px 0 rgba(10, 18, 16, 0.05);
+  --shadow-card: 0 2px 10px -3px rgba(10, 18, 16, 0.07), 0 6px 22px -6px rgba(10, 18, 16, 0.06);
+  --shadow-lifted: 0 10px 30px -8px rgba(10, 18, 16, 0.13), 0 4px 12px -4px rgba(10, 18, 16, 0.07);
+  --shadow-popup: 0 24px 56px -14px rgba(10, 18, 16, 0.26), 0 8px 22px -8px rgba(10, 18, 16, 0.14);
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Chronicle-style display headline: big, heavy, tightly tracked. Apply with
+   the `display-title` class on hero/section headings. */
+.display-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.02;
+}
